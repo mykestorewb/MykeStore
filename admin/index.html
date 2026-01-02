@@ -993,44 +993,51 @@ progressText.innerText = `Importando 0 de ${rows.length}`;
 
   let imported = 0;
 
+  for (const row of rows) {
+  if (!row.name) continue;
 
+  // 🧠 obtener código por fila
   const code = String(row.code || "").trim();
 
-if (code && existingCodes.has(code)) {
-  console.warn("Código duplicado omitido:", code);
-  continue;
-}
-  for (const row of rows) {
-    if (!row.name) continue;
-
-    const price = Number(row.price) || 0;
-    const discountPrice = Number(row.discountPrice) || 0;
-
-    const discountPercent =
-      price > 0
-        ? Math.round(((price - discountPrice) / price) * 100)
-        : 0;
-
-    await addDoc(collection(db, "products"), {
-      name: row.name,
-      code: code || "ID" + Date.now() + Math.floor(Math.random() * 1000),
-      category: row.category || "",
-      price,
-      cost: Number(row.cost) || 0,
-      discountPrice,
-      discountPercent,
-      stock: Number(row.stock) || 0,
-      active: String(row.active).toLowerCase() !== "false",
-      image: row.image || ""
-    });
-
-    imported++;
-    const percent = Math.round((imported / rows.length) * 100);
-progressBar.style.width = percent + "%";
-progressText.innerText = `Importando ${imported} de ${rows.length}`;
-await new Promise(r => setTimeout(r, 10));
-
+  // ⛔ evitar duplicados por código
+  if (code && existingCodes.has(code)) {
+    console.warn("Código duplicado omitido:", code);
+    continue; // ✅ ahora SÍ es válido
   }
+
+  const price = Number(row.price) || 0;
+  const discountPrice = Number(row.discountPrice) || 0;
+
+  const discountPercent =
+    price > 0
+      ? Math.round(((price - discountPrice) / price) * 100)
+      : 0;
+
+  await addDoc(collection(db, "products"), {
+    name: row.name,
+    code: code || "ID" + Date.now() + Math.floor(Math.random() * 1000),
+    category: row.category || "",
+    price,
+    cost: Number(row.cost) || 0,
+    discountPrice,
+    discountPercent,
+    stock: Number(row.stock) || 0,
+    active: String(row.active).toLowerCase() !== "false",
+    image: row.image || ""
+  });
+
+  // 🧠 registrar código ya usado
+  if (code) existingCodes.add(code);
+
+  imported++;
+
+  const percent = Math.round((imported / rows.length) * 100);
+  progressBar.style.width = percent + "%";
+  progressText.innerText = `Importando ${imported} de ${rows.length}`;
+
+  // 🟢 deja respirar al navegador (barra fluida)
+  await new Promise(r => setTimeout(r, 10));
+}
 
   progressBox.style.display = "none";
   alert(`✅ ${imported} productos importados correctamente`);
