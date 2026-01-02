@@ -1015,6 +1015,7 @@ function buildCategories(){
 
   Object.keys(DATA).forEach(cat => {
     const key = cat.replace(/\s+/g, "").toLowerCase();
+    console.log("CAT:", cat, "KEY:", key, "LOGO:", BRAND_LOGOS[key]);
     const d = document.createElement("div");
 
 const logo = BRAND_LOGOS[key]
