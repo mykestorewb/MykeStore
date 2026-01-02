@@ -89,6 +89,12 @@ header{
   display:block;
 }
 
+.product-name-wrap{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
 
 #categories div:hover{background:#e2e8f0}
 
@@ -701,7 +707,23 @@ function renderSection(title, products){
       ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
       ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
       <img src="${p.image}" onclick="showDetail('${p.name}')">
-      <h3 onclick="showDetail('${p.name}')">${p.name}</h3>
+      <h3 onclick="showDetail('${p.name}')">
+  <span class="product-name-wrap">
+    ${
+      BRAND_LOGOS[
+        p.category.replace(/\s+/g,"").toLowerCase()
+      ]
+        ? `<img src="${
+            BRAND_LOGOS[
+              p.category.replace(/\s+/g,"").toLowerCase()
+            ]
+          }" class="brand-logo">`
+        : ""
+    }
+    <span>${p.name}</span>
+  </span>
+</h3>
+
       <div>${p.discount ? `<span class="old-price">S/ ${p.price}</span>` : ""}<span class="price">S/ ${p.discount ? p.finalPrice : p.price}</span></div>
       <div class="qty">
         <button onclick="changeQty('${p.name}',-1)">-</button>
