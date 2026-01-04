@@ -406,12 +406,34 @@ main{padding:24px}
   margin: 10px 0;
 }
 
+/* ⬅️ SOLO DETALLE DEL PRODUCTO */
+.detail-info .qty button {
+  width:40px;       /* antes 28px */
+  height:40px;      /* antes 28px */
+  font-size:18px;   /* tamaño de + y - */
+}
+
+.detail-info .qty .q-span {
+  font-size:18px;   /* tamaño del número central */
+  min-width:30px;
+  text-align:center;
+}
+
+/* ⬅️ SOLO DETALLE DEL PRODUCTO */
+.detail-info .add-btn,
+.detail-info .buy-btn {
+  height:50px;      /* antes 38px */
+  font-size:16px;   /* texto más grande */
+  gap:10px;         /* más espacio entre icono y texto en comprar ahora */
+}
+  
 /* Ajuste para móviles */
 @media(max-width:768px){
   .detail-info .price {
     font-size: 24px;   /* más pequeño en móviles */
   }
 }
+
 
 
   
