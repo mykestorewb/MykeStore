@@ -979,7 +979,7 @@ function renderCategoryGrid(title, products){
 
 // ===== SLIDER DETALLE PRODUCTO =====
 
-function startDetailSlider(imgs){
+function startDetailSlider(){
   detailIndex = 0;
 
   stopDetailSlider();
@@ -1104,7 +1104,7 @@ imgs.forEach(src => {
 
 // ▶️ INICIAR SLIDER AUTOMÁTICO (SI APLICA)
 if (imgs.length > 1) {
-  startDetailSlider(imgs);
+  startDetailSlider();
   }
 updateDetailImg();
 
@@ -1113,7 +1113,7 @@ const slider = document.querySelector(".detail-slider");
 if (slider) {
   slider.addEventListener("mouseenter", stopDetailSlider);
   slider.addEventListener("mouseleave", () => {
-  if (imgs.length > 1) startDetailSlider(imgs);
+  if (imgs.length > 1) startDetailSlider();
 });
 
 
