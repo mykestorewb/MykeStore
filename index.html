@@ -218,7 +218,7 @@ main{padding:24px}
   width:100%;
   max-width:1000px;   /* 👈 mismo valor */
   margin:0 auto;
-  overflow:hidden;
+  overflow:visible;
 }
 
 .detail-track{
@@ -231,15 +231,14 @@ main{padding:24px}
   max-width:1000px;
   user-select:none;
   pointer-events:auto;
+  transform-origin: 50% 50%;
   cursor: zoom-in;
   transition: transform .3s ease;
 }
 
-
 .detail-img.zoomed{
   transform: scale(3);
   cursor: zoom-out;
-  transition: transform .3s ease;
 }
 
 @media(max-width:768px){
@@ -252,9 +251,6 @@ main{padding:24px}
   }
 }
 
- .detail-img{
-  transform-origin: center center;
-}
 .detail-slider img{
   width:100%;
   border-radius:14px;
@@ -1017,7 +1013,11 @@ function updateDetailImg(){
 
 // 🔒 quitar zoom al cambiar de imagen
 document.querySelectorAll(".detail-img")
-  .forEach(img => img.classList.remove("zoomed"));
+  .forEach(img => {
+    img.classList.remove("zoomed");
+    img.style.transformOrigin = "50% 50%";
+  });
+
 
 
   document.querySelectorAll(".detail-dots span")
@@ -1053,7 +1053,7 @@ function goDetailImg(i){
   updateDetailImg();
 }
 
-
+let moved = false;
 
 // Mostrar detalle
 function showDetail(name){
@@ -1133,7 +1133,6 @@ if (slider) {
   // 📱 Swipe móvil
   let startX = 0;
   let endX = 0;
-  let moved = false;
 
   slider.addEventListener("touchstart", e => {
     startX = e.touches[0].clientX;
@@ -1141,9 +1140,12 @@ if (slider) {
   }, { passive: true });
 
   slider.addEventListener("touchmove", e => {
-    endX = e.touches[0].clientX;
+  endX = e.touches[0].clientX;
+  if (Math.abs(startX - endX) > 10) {
     moved = true;
-  }, { passive: true });
+  }
+}, { passive: true });
+
 
   slider.addEventListener("touchend", () => {
     const diff = startX - endX;
@@ -1153,16 +1155,50 @@ if (slider) {
     }
   });
 
+
+  document.querySelectorAll(".detail-img").forEach(img => {
+  const newImg = img.cloneNode(true);
+  img.replaceWith(newImg);
+});
+
   // 🔍 Zoom imagen
   document.querySelectorAll(".detail-img").forEach(img => {
-    img.addEventListener("click", () => {
-      if (moved) {
-        moved = false;
-        return;
-      }
-      img.classList.toggle("zoomed");
-    });
+  let lastTap = 0;
+
+  // 🖱️ Click desktop
+  img.addEventListener("click", () => {
+    if (moved) {
+      moved = false;
+      return;
+    }
+    img.classList.toggle("zoomed");
+    img.style.transformOrigin = "50% 50%";
   });
+
+  // 🔍 Lupa que sigue el mouse (desktop)
+  img.addEventListener("mousemove", e => {
+    if (!img.classList.contains("zoomed")) return;
+
+    const rect = img.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    img.style.transformOrigin = `${x}% ${y}%`;
+  });
+
+  img.addEventListener("mouseleave", () => {
+    img.style.transformOrigin = "50% 50%";
+  });
+
+  // 📱 Doble tap mobile
+  img.addEventListener("touchend", () => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      img.classList.toggle("zoomed");
+    }
+    lastTap = now;
+  });
+});
 }
 
 // Cambiar cantidad
