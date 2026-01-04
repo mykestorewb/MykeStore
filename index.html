@@ -213,6 +213,75 @@ main{padding:24px}
 .detail-box img{width:280px}
 .detail-info{max-width:360px}
 
+  /* SLIDER IMÁGENES DETALLE */
+.detail-slider{
+  position:relative;
+  width:280px;
+  overflow: hidden;
+}
+
+.detail-track{
+  display:flex;
+  transition: transform .45s ease;
+}
+
+.detail-img{
+  min-width:100%;
+  user-select:none;
+  pointer-events:auto;
+  cursor: zoom-in;
+  transition: transform .3s ease;
+}
+
+
+.detail-img.zoomed{
+  transform: scale(1.8);
+  transform-origin: center center;
+  cursor: zoom-out;
+  transition: transform .3s ease;
+}
+
+.detail-slider img{
+  width:100%;
+  border-radius:14px;
+}
+
+.slider-btn{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  background:rgba(0,0,0,.5);
+  color:white;
+  border:none;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  cursor:pointer;
+}
+
+.slider-btn.prev{left:6px}
+.slider-btn.next{right:6px}
+
+.detail-dots{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-top:8px;
+  padding-bottom:6px; /* 👈 AQUÍ */
+}
+
+.detail-dots span{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#cbd5e1;
+  cursor:pointer;
+}
+
+.detail-dots span.active{
+  background:#0ea5e9;
+}
+
 /* CART */
 #cart-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5)}
 #cart-overlay.active{display:block}
@@ -310,17 +379,6 @@ main{padding:24px}
 /* ===============================
    GRID + PAGINACIÓN POR CATEGORÍA
 ================================ */
-
-.grid-products{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
-  gap:18px;
-}
-
-/* ===============================
-   GRID + PAGINACIÓN POR CATEGORÍA
-================================ */
-
 .grid-products{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
@@ -455,6 +513,10 @@ const db = getFirestore(app);
 let DATA = {}, CART = JSON.parse(localStorage.getItem("cart") || "{}");
 let currentPage = 1;
 const PAGE_SIZE = 16; // ← puedes cambiar a 15 o 20
+// Slider detalle producto
+let detailIndex = 0;
+let detailTimer = null;
+
 const BRAND_LOGOS = {
   "minigt": "imagenes/brands/minigt.svg",
   "poprace": "imagenes/brands/poprace.jpg",
@@ -476,7 +538,7 @@ const cartItems = document.getElementById("cartItems");
 const cartTotal = document.getElementById("cartTotal");
 const cartCount = document.getElementById("cartCount");
 const cartTimer = document.getElementById("cartTimer");
-const CART_TIMEOUT = 60 * 60 * 1000; // 5 minutos
+const CART_TIMEOUT = 60 * 60 * 1000; // 1 hora
 
 
 function listenProductsRealtime() {
@@ -915,11 +977,86 @@ function renderCategoryGrid(title, products){
   catalog.appendChild(section);
 }
 
+// ===== SLIDER DETALLE PRODUCTO =====
+
+function startDetailSlider(imgs){
+  detailIndex = 0;
+
+  stopDetailSlider();
+  detailTimer = setInterval(()=>{
+    nextDetailImg(true);
+  },3000);
+}
+
+function stopDetailSlider(){
+  if(detailTimer){
+    clearInterval(detailTimer);
+    detailTimer = null;
+  }
+}
+
+function updateDetailImg(){
+  const track = document.querySelector(".detail-track");
+  if(!track) return;
+
+  track.style.transform = `translateX(-${detailIndex * 100}%)`;
+
+// 🔒 quitar zoom al cambiar de imagen
+document.querySelectorAll(".detail-img")
+  .forEach(img => img.classList.remove("zoomed"));
+
+
+  document.querySelectorAll(".detail-dots span")
+    .forEach((d,i)=>d.classList.toggle("active", i === detailIndex));
+}
+
+
+function nextDetailImg(auto=false){
+  if(!auto) stopDetailSlider();
+
+  const total = document.querySelectorAll(".detail-img").length;
+  if(!total) return;
+
+  detailIndex = (detailIndex + 1) % total;
+  updateDetailImg();
+}
+
+
+function prevDetailImg(){
+  stopDetailSlider();
+
+  const total = document.querySelectorAll(".detail-img").length;
+  if(!total) return;
+
+  detailIndex = (detailIndex - 1 + total) % total;
+  updateDetailImg();
+}
+
+
+function goDetailImg(i){
+  stopDetailSlider();
+  detailIndex = i;
+  updateDetailImg();
+}
+
+
 
 // Mostrar detalle
 function showDetail(name){
   const p=Object.values(DATA).flat().find(x=>x.name===name);
   if(!p) return;
+  const imgs =
+  Array.isArray(p.images) && p.images.length > 0
+    ? p.images
+    : [p.image];
+
+  // 🚀 Precargar imágenes del producto
+imgs.forEach(src => {
+  const img = new Image();
+  img.src = src;
+});
+
+
   catalog.style.display="none";
   detail.style.display="block";
   detail.innerHTML=`
@@ -927,7 +1064,28 @@ function showDetail(name){
   <div style="position:relative;">
     <!-- Icono Volver más pequeño -->
     <div class="back-btn" onclick="goHome()"><img src="imagenes/Volver.png" style="width:28px;"></div>
-    <img src="${p.image}">
+    <div class="detail-slider">
+  <div class="detail-track">
+    ${imgs.map(src => `
+      <img src="${src}" class="detail-img">
+    `).join("")}
+  </div>
+
+
+  ${
+    imgs.length > 1
+      ? `
+        <button class="slider-btn prev" onclick="prevDetailImg()">‹</button>
+        <button class="slider-btn next" onclick="nextDetailImg()">›</button>
+
+        <div class="detail-dots">
+          ${imgs.map((_,i)=>`<span onclick="goDetailImg(${i})"></span>`).join("")}
+        </div>
+      `
+      : ""
+  }
+</div>
+ 
   </div>
   <div class="detail-info">
     <h2>${p.name}</h2>
@@ -943,6 +1101,65 @@ function showDetail(name){
     <button class="buy-btn" onclick="buyNow('${p.name}')"><img src="imagenes/whatsapp-logo.png" style="width:16px;"> Comprar ahora</button>
   </div>
 </div>`;
+
+// ▶️ INICIAR SLIDER AUTOMÁTICO (SI APLICA)
+if (imgs.length > 1) {
+  startDetailSlider(imgs);
+  }
+updateDetailImg();
+
+// 🛑 Pausar slider al pasar el mouse (desktop)
+const slider = document.querySelector(".detail-slider");
+if (slider) {
+  slider.addEventListener("mouseenter", stopDetailSlider);
+  slider.addEventListener("mouseleave", () => {
+  if (imgs.length > 1) startDetailSlider(imgs);
+});
+
+
+  // 📱 Swipe en móvil (touch)
+let startX = 0;
+let endX = 0;
+
+slider.addEventListener("touchstart", (e) => {
+  startX = e.touches[0].clientX;
+}, { passive: true });
+
+slider.addEventListener("touchmove", (e) => {
+  endX = e.touches[0].clientX;
+}, { passive: true });
+
+slider.addEventListener("touchend", () => {
+  const diff = startX - endX;
+
+  if (Math.abs(diff) > 50) {
+    stopDetailSlider();
+    if (diff > 0) {
+      nextDetailImg();   // swipe izquierda
+    } else {
+      prevDetailImg();   // swipe derecha
+    }
+  }
+});
+
+// 🔍 Zoom imagen (click / tap)
+let moved = false;
+
+slider.addEventListener("touchmove", () => {
+  moved = true;
+}, { passive: true });
+
+document.querySelectorAll(".detail-img").forEach(img=>{
+  img.addEventListener("click", ()=>{
+    if(moved){
+      moved = false;
+      return;
+    }
+    img.classList.toggle("zoomed");
+  });
+});
+
+
 }
 
 // Cambiar cantidad
@@ -997,6 +1214,7 @@ async function addToCart(name){
 
 function buyNow(name){addToCart(name);toggleCart(true)}
 function goHome(){
+  stopDetailSlider(); // 👈 importante
   checkoutInProgress = false;
   sessionStorage.removeItem("checkoutConfirmed");
   renderAll();
@@ -1237,6 +1455,9 @@ window.buyNow = buyNow;
 window.toggleCart = toggleCart;
 window.goHome = goHome;
 window.toggleCategories = toggleCategories;
+window.nextDetailImg = nextDetailImg;
+window.prevDetailImg = prevDetailImg;
+window.goDetailImg = goDetailImg;
 window.closeCategories = closeCategories;
 window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
