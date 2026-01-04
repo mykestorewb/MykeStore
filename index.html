@@ -218,7 +218,7 @@ main{padding:24px}
   width:100%;
   max-width:1000px;   /* 👈 mismo valor */
   margin:0 auto;
-  overflow:visible;
+  overflow:hidden;
 }
 
 .detail-track{
@@ -227,6 +227,7 @@ main{padding:24px}
 }
 
 .detail-img{
+  flex: 0 0 100%; /* ⬅️ cada imagen ocupa 100% del ancho del slider */
   width:100%;
   max-width:1000px;
   user-select:none;
