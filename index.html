@@ -215,9 +215,10 @@ main{padding:24px}
 
   /* SLIDER IMÁGENES DETALLE */
 .detail-slider{
-  position:relative;
-  width:280px;
-  overflow: hidden;
+  width:100%;
+  max-width:1000px;   /* 👈 mismo valor */
+  margin:0 auto;
+  overflow:hidden;
 }
 
 .detail-track{
@@ -226,7 +227,8 @@ main{padding:24px}
 }
 
 .detail-img{
-  min-width:100%;
+  width:100%;
+  max-width:1000px;
   user-select:none;
   pointer-events:auto;
   cursor: zoom-in;
@@ -235,12 +237,24 @@ main{padding:24px}
 
 
 .detail-img.zoomed{
-  transform: scale(1.8);
-  transform-origin: center center;
+  transform: scale(3);
   cursor: zoom-out;
   transition: transform .3s ease;
 }
 
+@media(max-width:768px){
+  .detail-img{
+    max-width:100%;
+  }
+
+  .detail-img.zoomed{
+    transform: scale(2);
+  }
+}
+
+ .detail-img{
+  transform-origin: center center;
+}
 .detail-slider img{
   width:100%;
   border-radius:14px;
@@ -1102,10 +1116,10 @@ imgs.forEach(src => {
   </div>
 </div>`;
 
-// ▶️ INICIAR SLIDER AUTOMÁTICO (SI APLICA)
+// ▶️ INICIAR SLIDER AUTOMÁTICO
 if (imgs.length > 1) {
   startDetailSlider();
-  }
+}
 updateDetailImg();
 
 // 🛑 Pausar slider al pasar el mouse (desktop)
@@ -1113,52 +1127,42 @@ const slider = document.querySelector(".detail-slider");
 if (slider) {
   slider.addEventListener("mouseenter", stopDetailSlider);
   slider.addEventListener("mouseleave", () => {
-  if (imgs.length > 1) startDetailSlider();
-});
-
-
-  // 📱 Swipe en móvil (touch)
-let startX = 0;
-let endX = 0;
-
-slider.addEventListener("touchstart", (e) => {
-  startX = e.touches[0].clientX;
-}, { passive: true });
-
-slider.addEventListener("touchmove", (e) => {
-  endX = e.touches[0].clientX;
-}, { passive: true });
-
-slider.addEventListener("touchend", () => {
-  const diff = startX - endX;
-
-  if (Math.abs(diff) > 50) {
-    stopDetailSlider();
-    if (diff > 0) {
-      nextDetailImg();   // swipe izquierda
-    } else {
-      prevDetailImg();   // swipe derecha
-    }
-  }
-});
-
-// 🔍 Zoom imagen (click / tap)
-let moved = false;
-
-slider.addEventListener("touchmove", () => {
-  moved = true;
-}, { passive: true });
-
-document.querySelectorAll(".detail-img").forEach(img=>{
-  img.addEventListener("click", ()=>{
-    if(moved){
-      moved = false;
-      return;
-    }
-    img.classList.toggle("zoomed");
+    if (imgs.length > 1) startDetailSlider();
   });
-});
-}
+
+  // 📱 Swipe móvil
+  let startX = 0;
+  let endX = 0;
+  let moved = false;
+
+  slider.addEventListener("touchstart", e => {
+    startX = e.touches[0].clientX;
+    moved = false;
+  }, { passive: true });
+
+  slider.addEventListener("touchmove", e => {
+    endX = e.touches[0].clientX;
+    moved = true;
+  }, { passive: true });
+
+  slider.addEventListener("touchend", () => {
+    const diff = startX - endX;
+    if (Math.abs(diff) > 50) {
+      stopDetailSlider();
+      diff > 0 ? nextDetailImg() : prevDetailImg();
+    }
+  });
+
+  // 🔍 Zoom imagen
+  document.querySelectorAll(".detail-img").forEach(img => {
+    img.addEventListener("click", () => {
+      if (moved) {
+        moved = false;
+        return;
+      }
+      img.classList.toggle("zoomed");
+    });
+  });
 }
 
 // Cambiar cantidad
