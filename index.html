@@ -858,8 +858,8 @@ function renderSection(title, products){
     c.innerHTML = `
       ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
       ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
-      <img src="${p.image}" onclick="showDetail('${p.name}')">
-      <h3 onclick="showDetail('${p.name}')">
+      <img src="${p.image}" onclick="showDetailById('${p.id}')">
+      <h3 onclick="showDetailById('${p.id}')">
        ${p.name}
       </h3>
 
@@ -943,8 +943,8 @@ function renderCategoryGrid(title, products){
     c.innerHTML = `
       ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
       ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
-      <img src="${p.image}" onclick="showDetail('${p.name}')">
-      <h3 onclick="showDetail('${p.name}')">${p.name}</h3>
+      <img src="${p.image}" onclick="showDetailById('${p.id}')">
+      <h3 onclick="showDetailById('${p.id}')">
       <div>
         ${p.discount ? `<span class="old-price">S/ ${p.price}</span>` : ""}
         <span class="price">S/ ${p.discount?p.finalPrice:p.price}</span>
@@ -1047,6 +1047,12 @@ function goDetailImg(i){
 
 let moved = false;
 
+function showDetailById(id){
+  const p = Object.values(DATA).flat().find(x => x.id === id);
+  if (!p) return;
+  showDetail(p.name);
+}
+  
 // Mostrar detalle
 function showDetail(name){
   const p=Object.values(DATA).flat().find(x=>x.name===name);
