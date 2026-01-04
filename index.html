@@ -831,20 +831,12 @@ function renderSection(title, products){
   const s = document.createElement("div");
   s.className = "section";
   s.innerHTML = `
-    <h2 class="section-title">
+<h2 class="section-title">
   ${
-    BRAND_LOGOS[
-      title.replace(/\s+/g,"").toLowerCase()
-    ]
-      ? `<img src="${
-          BRAND_LOGOS[
-            title.replace(/\s+/g,"").toLowerCase()
-          ]
-        }" class="section-brand-logo">`
+    BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
+      ? `<img src="${BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]}" class="section-brand-logo">`
       : ""
   }
-
-  
   <span>${title}</span>
 </h2>
 
