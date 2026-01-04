@@ -305,6 +305,51 @@ main{padding:24px}
     width: 100%;
   }
 }
+
+
+/* ===============================
+   GRID + PAGINACIÓN POR CATEGORÍA
+================================ */
+
+.grid-products{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:18px;
+}
+
+/* ===============================
+   GRID + PAGINACIÓN POR CATEGORÍA
+================================ */
+
+.grid-products{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:18px;
+}
+
+  
+.pagination{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin-top:24px;
+}
+
+.pagination button{
+  padding:8px 12px;
+  border:none;
+  border-radius:8px;
+  background:#e5e7eb;
+  cursor:pointer;
+  font-weight:600;
+}
+
+.pagination button.active{
+  background:#0ea5e9;
+  color:white;
+}
+
+  
 </style>
 </head>
 
@@ -408,6 +453,8 @@ const db = getFirestore(app);
 
 // Variables globales
 let DATA = {}, CART = JSON.parse(localStorage.getItem("cart") || "{}");
+let currentPage = 1;
+const PAGE_SIZE = 16; // ← puedes cambiar a 15 o 20
 const BRAND_LOGOS = {
   "minigt": "imagenes/brands/minigt.svg",
   "poprace": "imagenes/brands/poprace.jpg",
@@ -679,12 +726,14 @@ function renderAll(selectedCategory = null){
 
   // 📦 MOSTRAR POR CATEGORÍA
   if(selectedCategory){
-    renderSection(
-      selectedCategory,
-      DATA[selectedCategory].sort((a,b)=>a.price-b.price)
-    );
-    return;
-  }
+  currentPage = 1;
+  renderCategoryGrid(
+    selectedCategory,
+    DATA[selectedCategory].sort((a,b)=>a.price-b.price)
+  );
+  return;
+}
+
 
 // 🔍 BÚSQUEDA POR TEXTO (PRODUCTO O CATEGORÍA)
 Object.entries(DATA).forEach(([cat, products])=>{
@@ -722,6 +771,8 @@ function renderSection(title, products){
         }" class="section-brand-logo">`
       : ""
   }
+
+  
   <span>${title}</span>
 </h2>
 
@@ -787,6 +838,83 @@ function renderSection(title, products){
 
   catalog.appendChild(s);
 }
+
+
+function renderCategoryGrid(title, products){
+  catalog.innerHTML = "";
+  detail.style.display = "none";
+  catalog.style.display = "block";
+
+  const totalPages = Math.ceil(products.length / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const end = start + PAGE_SIZE;
+  const pageProducts = products.slice(start, end);
+
+  const section = document.createElement("div");
+  section.className = "section";
+
+  section.innerHTML = `
+    <h2 class="section-title">
+      ${
+        BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
+          ? `<img src="${
+              BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
+            }" class="section-brand-logo">`
+          : ""
+      }
+      <span>${title}</span>
+    </h2>
+
+    <div class="grid-products"></div>
+    <div class="pagination"></div>
+  `;
+
+  const grid = section.querySelector(".grid-products");
+  const pagination = section.querySelector(".pagination");
+
+  pageProducts.forEach(p=>{
+    const a = available(p);
+    const c = document.createElement("div");
+    c.className = "card" + (a <= 0 ? " disabled" : "");
+    c.innerHTML = `
+      ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
+      ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
+      <img src="${p.image}" onclick="showDetail('${p.name}')">
+      <h3 onclick="showDetail('${p.name}')">${p.name}</h3>
+      <div>
+        ${p.discount ? `<span class="old-price">S/ ${p.price}</span>` : ""}
+        <span class="price">S/ ${p.discount?p.finalPrice:p.price}</span>
+      </div>
+      <div class="qty">
+        <button onclick="changeQty('${p.name}',-1)">-</button>
+        <span class="q-span">${p._qty}</span>
+        <button onclick="changeQty('${p.name}',1)">+</button>
+      </div>
+      <button class="add-btn" onclick="addToCart('${p.name}')">Añadir al carrito</button>
+      <button class="buy-btn" onclick="buyNow('${p.name}')">
+        <img src="imagenes/whatsapp-logo.png" style="width:16px;">
+        Comprar ahora
+      </button>
+    `;
+    grid.appendChild(c);
+    setTimeout(()=>c.classList.add("show"),50);
+  });
+
+  for(let i=1;i<=totalPages;i++){
+    const btn = document.createElement("button");
+    btn.innerText = i;
+    btn.className = i === currentPage ? "active" : "";
+    btn.onclick = ()=>{
+      currentPage = i;
+      renderCategoryGrid(title, products);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    pagination.appendChild(btn);
+  }
+
+  catalog.appendChild(section);
+}
+
 
 // Mostrar detalle
 function showDetail(name){
@@ -1114,6 +1242,7 @@ window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
 window.confirmCheckout = confirmCheckout;
 
+  
 </script>
 
 </body>
