@@ -406,6 +406,22 @@ main{padding:24px}
   margin: 10px 0;
 }
 
+/* Botón Volver al lado izquierdo del slider solo en detalle */
+.detail-box .back-btn {
+  position: absolute;       /* lo posicionamos sobre el slider */
+  left: 8px;                /* espacio desde la izquierda */
+  top: 50%;                 /* centrado verticalmente */
+  transform: translateY(-50%); /* centrado exacto */
+  z-index: 10;              /* encima de la imagen */
+  cursor: pointer;
+}
+
+.detail-box .back-btn img {
+  width: 32px;              /* tamaño del icono */
+  height: 32px;
+}
+
+
 /* ⬅️ SOLO DETALLE DEL PRODUCTO */
 .detail-info .qty button {
   width:40px;       /* antes 28px */
@@ -436,8 +452,16 @@ main{padding:24px}
   .detail-info .qty .q-span {
   font-weight: 700;  /* sigue en negrita */
   font-size: 20px;   /* tamaño adecuado para móvil */
-}
-
+  }
+  .detail-box .back-btn {
+  left: 4px;
+  top: 4px;
+  transform: none;
+  }
+  .detail-box .back-btn img {
+  width: 28px;
+  height: 28px;
+  }
 
 
   
