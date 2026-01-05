@@ -938,16 +938,32 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("checkoutModal").style.display = "flex";
 }
 
-  function loginWithGoogle(){
+  // Evita abrir múltiples popups
+let popupInProgress = false;
+
+function loginWithGoogle() {
+  if (popupInProgress) return; // previene múltiples popups
+  popupInProgress = true;
+
   signInWithPopup(auth, googleProvider)
-    .then(()=>{
+    .then(() => {
       document.getElementById("loginModal").style.display = "none";
     })
-    .catch(err=>{
+    .catch(err => {
       console.error(err);
-      alert("No se pudo iniciar sesión con Google");
+      if (err.code === "auth/cancelled-popup-request") {
+        alert("Se canceló el inicio de sesión. Intenta nuevamente.");
+      } else if (err.code === "auth/popup-closed-by-user") {
+        alert("Popup cerrado por el usuario.");
+      } else {
+        alert("No se pudo iniciar sesión con Google");
+      }
+    })
+    .finally(() => {
+      popupInProgress = false;
     });
 }
+
 
 
   
