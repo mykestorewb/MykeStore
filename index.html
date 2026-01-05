@@ -793,15 +793,22 @@ function listenProductsRealtime() {
     DATA = {}; // reset limpio
 
     snapshot.forEach(docu => {
-      const p = { id: docu.id, ...docu.data() };
+      const data = docu.data();
+
+const p = {
+  id: docu.id,
+  ...data,
+  stock: Number(data.stock) || 0   // 👈 CLAVE
+};
+
 
       // 🔒 Evitar documentos basura (ej: init)
       if (
-        !p.name ||
-        !p.category ||
-        typeof p.price !== "number" ||
-        typeof p.stock !== "number"
-      ) return;
+  !p.name ||
+  !p.category ||
+  typeof p.price !== "number"
+) return;
+
 
       // ❌ NO mostrar productos inactivos
       if (p.active === false) return;
@@ -1007,8 +1014,9 @@ function checkExpiredCart(){
 
 // Stock disponible
 function available(p){
-  return Math.max(0, p.stock);
+  return Math.max(0, Number(p.stock) || 0);
 }
+
 
 // Render catálogo
 function renderAll(selectedCategory = null){
