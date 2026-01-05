@@ -242,18 +242,6 @@ main{padding:24px}
   cursor:help;
 }
 
-/* ENTREGA ESTIMADA */
-.estimated-delivery{
-  margin-top:6px;
-  font-size:12px;
-  font-weight:600;
-  color:#4f46e5;
-  background:#eef2ff;
-  padding:4px 8px;
-  border-radius:8px;
-  text-align:center;
-}
-
 /* TOOLTIP */
 .tooltip{
   position:relative;
@@ -1091,15 +1079,20 @@ ${
 
 
       <div class="qty">
-        <button onclick="changeQty('${p.name}',-1)">-</button>
+        <button class="btn-minus" data-name="${p.name}">-</button>
         <span class="q-span">${p._qty}</span>
-        <button onclick="changeQty('${p.name}',1)">+</button>
+        <button class="btn-plus" data-name="${p.name}">+</button>
       </div>
-      <button class="add-btn" onclick="addToCart('${p.name}')">
+      <button class="add-btn" data-name="${p.name}">
   ${p.saleType === "preventa" ? "Reservar" : "Añadir al carrito"}
 </button>
 
-      <button class="buy-btn" onclick="buyNow('${p.name}')"><img src="imagenes/whatsapp-logo.png" style="width:16px;"> Comprar ahora</button>
+
+      <button class="buy-btn" data-name="${p.name}">
+  <img src="imagenes/whatsapp-logo.png" style="width:16px;">
+  Comprar ahora
+</button>
+
     `;
     track.appendChild(c);
 
@@ -1232,18 +1225,20 @@ ${
 
 
   <div class="qty">
-    <button onclick="changeQty('${p.name}',-1)">-</button>
+    <button class="btn-minus" data-name="${p.name}">-</button>
     <span class="q-span">${p._qty}</span>
-    <button onclick="changeQty('${p.name}',1)">+</button>
+    <button class="btn-plus" data-name="${p.name}">+</button>
   </div>
 
-  <button class="add-btn" onclick="addToCart('${p.name}')">
+  <button class="add-btn" data-name="${p.name}">
   ${p.saleType === "preventa" ? "Reservar" : "Añadir al carrito"}
 </button>
-  <button class="buy-btn" onclick="buyNow('${p.name}')">
-    <img src="imagenes/whatsapp-logo.png" style="width:16px;">
-    Comprar ahora
-  </button>
+
+  <button class="buy-btn" data-name="${p.name}">
+  <img src="imagenes/whatsapp-logo.png" style="width:16px;">
+  Comprar ahora
+</button>
+
 `;
 
     grid.appendChild(c);
@@ -1334,14 +1329,18 @@ function goDetailImg(i){
 let moved = false;
 
 function showDetailById(id){
-  const p = Object.values(DATA).flat().find(x => x.id === id);
+  const p = Object.values(DATA)
+  .flatMap(type => Object.values(type || {}).flat())
+.find(x => x.id === id);
   if (!p) return;
   showDetail(p.name);
 }
   
 // Mostrar detalle
 function showDetail(name){
-  const p=Object.values(DATA).flat().find(x=>x.name===name);
+  const p=Object.values(DATA)
+  .flatMap(type => Object.values(type || {}).flat())
+.find(x=>x.name===name);
   if(!p) return;
   const imgs =
   Array.isArray(p.images) && p.images.length > 0
@@ -1411,16 +1410,20 @@ imgs.forEach(src => {
 <p class="price">S/ ${p.discount ? p.finalPrice : p.price}</p>
 
     <div class="qty">
-      <button onclick="changeQty('${p.name}',-1)">-</button>
+      <button class="btn-minus" data-name="${p.name}">-</button>
       <span class="q-span">${p._qty}</span>
-      <button onclick="changeQty('${p.name}',1)">+</button>
+      <button class="btn-plus" data-name="${p.name}">+</button>
     </div>
-    <button class="add-btn" onclick="addToCart('${p.name}')">
+    <button class="add-btn" data-name="${p.name}">
   ${p.saleType === "preventa" ? "Reservar" : "Añadir al carrito"}
 </button>
 
     <!-- Icono WhatsApp más pequeño -->
-    <button class="buy-btn" onclick="buyNow('${p.name}')"><img src="imagenes/whatsapp-logo.png" style="width:16px;"> Comprar ahora</button>
+    <button class="buy-btn" data-name="${p.name}">
+  <img src="imagenes/whatsapp-logo.png" style="width:16px;">
+  Comprar ahora
+</button>
+
   </div>
 </div>
 `;
@@ -1512,16 +1515,27 @@ if (slider) {
 
 // Cambiar cantidad
 function changeQty(name,d){
-  const p=Object.values(DATA).flat().find(x=>x.name===name);
+  const p=Object.values(DATA)
+  .flatMap(type => Object.values(type || {}).flat())
+.find(x=>x.name===name);
   if (p.saleType === "preventa") {
   p._qty = Math.max(1, p._qty + d);
 } else {
   p._qty = Math.max(1, Math.min(available(p), p._qty + d));
 }
 
-  document.querySelectorAll(`.q-span`).forEach(e=>{
-    if(e.closest(".card")?.querySelector("h3")?.innerText===name || e.closest(".detail-info")) e.innerText=p._qty;
-  });
+  document.querySelectorAll(".q-span").forEach(e => {
+  const cardName =
+    e.closest(".card")?.querySelector("h3")?.innerText;
+
+  const detailName =
+    e.closest(".detail-info")?.querySelector("h2")?.innerText;
+
+  if (cardName === name || detailName === name) {
+    e.innerText = p._qty;
+  }
+});
+
 }
 
 // Carrito
@@ -1531,7 +1545,9 @@ async function addToCart(name){
   if(reserving) return;
   reserving = true;
 
-  const p = Object.values(DATA).flat().find(x => x.name === name);
+  const p = Object.values(DATA)
+  .flatMap(type => Object.values(type || {}).flat())
+.find(x => x.name === name);
   if(!p){
     reserving = false;
     return;
@@ -1851,6 +1867,35 @@ function toggleCategories(){
     .getElementById("categories-overlay")
     .classList.remove("active");
 }
+
+document.addEventListener("click", e => {
+
+  // + cantidad
+  if (e.target.closest(".btn-plus")) {
+    const name = e.target.closest("button").dataset.name;
+    changeQty(name, 1);
+  }
+
+  // - cantidad
+  if (e.target.closest(".btn-minus")) {
+    const name = e.target.closest("button").dataset.name;
+    changeQty(name, -1);
+  }
+
+  // Añadir / Reservar
+  if (e.target.closest(".add-btn")) {
+    const name = e.target.closest("button").dataset.name;
+    addToCart(name);
+  }
+
+  // Comprar ahora
+  if (e.target.closest(".buy-btn")) {
+    const name = e.target.closest("button").dataset.name;
+    buyNow(name);
+  }
+
+});
+
 
 // ==== EXPONER FUNCIONES PARA HTML (FIX MODULE) ====
 window.renderAll = renderAll;
