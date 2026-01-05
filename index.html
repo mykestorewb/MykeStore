@@ -91,7 +91,7 @@ header{
   min-width:36px;
   min-height:36px;
   object-fit:contain;
-  display:block;
+  display:inline-block; /* ⬅️ cambiar */
 }
 
 .product-name-wrap{
@@ -860,6 +860,24 @@ function renderAll(selectedCategory = null){
   const q = search.value.toLowerCase().trim();
   const isSearching = q !== "" || selectedCategory !== null;
 
+  // 🔹 Filtrar según Stock o Preventa
+let filteredData = DATA;
+
+if(selectedCategory === "Stock") {
+  filteredData = {};
+  Object.keys(DATA).forEach(cat => {
+    const items = DATA[cat].filter(p => p.stock > 0);
+    if(items.length) filteredData[cat] = items;
+  });
+} else if(selectedCategory === "Preventa") {
+  filteredData = {};
+  Object.keys(DATA).forEach(cat => {
+    const items = DATA[cat].filter(p => p.stock === 0);
+    if(items.length) filteredData[cat] = items;
+  });
+}
+
+
   if(!isSearching){
     const offers = Object.values(DATA)
       .flat()
@@ -885,20 +903,14 @@ function renderAll(selectedCategory = null){
 
 
 // 🔍 BÚSQUEDA POR TEXTO (PRODUCTO O CATEGORÍA)
-Object.entries(DATA).forEach(([cat, products])=>{
+Object.entries(filteredData).forEach(([cat, products])=>{
   const catMatch = cat.toLowerCase().includes(q);
-
   const filtered = catMatch
-    ? products                           // si coincide categoría → todo
-    : products.filter(p =>
-        p.name.toLowerCase().includes(q) // si no → por nombre
-      );
+    ? products
+    : products.filter(p => p.name.toLowerCase().includes(q));
 
   if(filtered.length){
-    renderSection(
-      cat,
-      filtered.sort((a,b)=>a.price-b.price)
-    );
+    renderSection(cat, filtered.sort((a,b)=>a.price-b.price));
   }
 });
 }
@@ -1531,32 +1543,39 @@ function toggleCart(show){
 }
 
 // Categorías
-function buildCategories(){
+function buildCategories() {
   categories.innerHTML = "";
 
-  Object.keys(DATA).forEach(cat => {
-    const key = cat.replace(/\s+/g, "").toLowerCase();
-    console.log("CAT:", cat, "KEY:", key, "LOGO:", BRAND_LOGOS[key]);
-    const d = document.createElement("div");
+  // Categorías padre
+  const parents = ["Stock", "Preventa"];
 
-const logo = BRAND_LOGOS[key]
-  ? `<img src="${BRAND_LOGOS[key]}" class="brand-logo">`
-  : "";
+  parents.forEach(parent => {
+    const parentDiv = document.createElement("div");
+    parentDiv.style.fontWeight = "700";
+    parentDiv.style.fontSize = "20px";
+    parentDiv.innerText = parent;
+    categories.appendChild(parentDiv);
 
-d.innerHTML = `
-  ${logo}
-  <span>${cat}</span>
-`;
+    // Subcategorías (marcas) dentro
+    const brands = Object.keys(DATA); // tus categorías actuales
+    brands.forEach(brand => {
+      // Filtrar según disponibilidad
+      let products = DATA[brand] || [];
+      const filteredProducts = parent === "Stock"
+        ? products.filter(p => p.stock > 0)
+        : products.filter(p => p.stock === 0); // o cualquier condición de preventa
 
+      if(filteredProducts.length === 0) return; // no mostrar si no hay productos
 
-    d.onclick = () => {
-    search.value = "";
-    renderAll(cat);
-    closeCategories(); // 👈 cierre limpio y consistente
-};
-
-
-    categories.appendChild(d);
+      const brandDiv = document.createElement("div");
+      brandDiv.className = "product-name-wrap";
+      brandDiv.innerHTML = `
+        <img class="brand-logo" src="${BRAND_LOGOS[brand.toLowerCase()] || ''}">
+        <span>${brand}</span>
+      `;
+      brandDiv.onclick = () => renderAll(brand); // renderiza productos al click
+      categories.appendChild(brandDiv);
+    });
   });
 }
 
