@@ -1610,69 +1610,64 @@ function goHome(){
 
 
 function saveCart(){
-  localStorage.setItem("cart", JSON.stringify(CART));
+  localStorage.setItem("cart",JSON.stringify(CART));
   renderCart();
 }
 
 function renderCart(){
-  // Contador del ícono
-  cartCount.textContent = Object.keys(CART).length;
+  let total=0, count=0;
+  cartItems.innerHTML="";
+  const now=Date.now();
+  let minLeft=0, secLeft=0;
 
-  // Lista de items
-  cartItems.innerHTML = "";
-  let total = 0;
+  Object.values(CART).forEach(p=>{
+    const elapsed = now - p.time;
+    const left = CART_TIMEOUT - elapsed;
+    if(left <= 0) return; // si expiró, lo ignoramos
 
-  Object.values(CART).forEach(item => {
-    const div = document.createElement("div");
-    div.className = "cart-item";
-    const subtotal = item.price * item.qty;
-    total += subtotal;
+    total += (p.discount?p.finalPrice:p.price)*p.qty;
+    count += p.qty;
 
-    div.innerHTML = `
-      <span>${item.name} x ${item.qty}</span>
-      <span>S/ ${subtotal}</span>
-      <button onclick="removeFromCart('${item.id}')">✕</button>
-    `;
-    cartItems.appendChild(div);
+    // calcular tiempo restante de este producto
+    const minutes = Math.floor(left/60000);
+    const seconds = Math.floor((left%60000)/1000);
+    minLeft = minutes;
+    secLeft = seconds;
+
+    cartItems.innerHTML += `
+      <div class="cart-item">
+        ${p.name} x${p.qty}
+        <button onclick="removeFromCart('${p.id}')">❌</button>
+      </div>`;
   });
 
-  cartTotal.textContent = total.toFixed(2);
+  cartTotal.innerText = total;
+  cartCount.innerText = count;
+  cartTimer.innerText = `(${minLeft}m ${secLeft}s)`;
+}
 
-  // Timer
-  const now = Date.now();
-  let nextExpire = Math.min(...Object.values(CART).map(i => i.time + CART_TIMEOUT - now));
-  if(isFinite(nextExpire)){
-    const seconds = Math.floor(nextExpire / 1000);
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    cartTimer.textContent = `⏱ ${mins}:${secs.toString().padStart(2,'0')}`;
-  } else {
-    cartTimer.textContent = "";
-  }
+// ============================
+// Cerrar carrito (botón y swipe)
+// ============================
+const cartCloseBtn = document.getElementById("cartCloseBtn");
+if(cartCloseBtn) {
+  cartCloseBtn.addEventListener("click", () => toggleCart(false));
+}
+
+let startXCart = 0;
+const cartEl = document.getElementById("cart");
+if(cartEl){
+  cartEl.addEventListener("touchstart", e => startXCart = e.touches[0].clientX, {passive:true});
+  cartEl.addEventListener("touchend", e => {
+    const endX = e.changedTouches[0].clientX;
+    if(endX - startXCart > 80) toggleCart(false);
+  });
 }
 
 function removeFromCart(id){
   delete CART[id];
   saveCart();
 }
-
-function addToCart(product){
-  if(!CART[product.id]){
-    CART[product.id] = {
-      id: product.id,
-      name: product.name,
-      price: product.discount ? product.finalPrice : product.price,
-      qty: product._qty,
-      time: Date.now()
-    };
-  } else {
-    CART[product.id].qty += product._qty;
-    CART[product.id].time = Date.now(); // reset timeout
-  }
-  saveCart();
-  toggleCart(true); // abrir carrito al añadir
-}
-
   
 
 async function processCheckout() {
@@ -1748,13 +1743,8 @@ function clearAfterCheckout(){
   
 // Mostrar/ocultar carrito
 function toggleCart(show){
-  if(show){
-    document.getElementById("cart-overlay").classList.add("active");
-    document.getElementById("cart").classList.add("active");
-  } else {
-    document.getElementById("cart-overlay").classList.remove("active");
-    document.getElementById("cart").classList.remove("active");
-  }
+  document.getElementById("cart").classList.toggle("active",show);
+  document.getElementById("cart-overlay").classList.toggle("active",show);
 }
 
 // Categorías
