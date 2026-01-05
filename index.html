@@ -1767,9 +1767,10 @@ function buildCategories(){
     childContainer.style.paddingLeft = "12px";
 
     parentDiv.onclick = () => {
-      childContainer.style.display =
-        childContainer.style.display === "none" ? "block" : "none";
-    };
+  renderByType(parent.key);
+  closeCategories();
+};
+
 
     Object.keys(DATA[parent.key]).forEach(cat => {
       const key = cat.replace(/\s+/g,"").toLowerCase();
@@ -1805,7 +1806,21 @@ function renderByTypeAndCategory(type, category){
   const products = DATA[type][category] || [];
   renderCategoryGrid(`${category} (${type})`, products);
 }
-  
+
+function renderByType(type){
+  currentPage = 1;
+
+  if (!DATA[type]) return;
+
+  // unir todas las categorías del tipo
+  const products = Object.values(DATA[type]).flat();
+
+  renderCategoryGrid(
+    type === "stock" ? "📦 Stock" : "⏳ Preventa",
+    products
+  );
+}
+
   
 function toggleCategories(){
   const open = categories.style.display !== "block";
