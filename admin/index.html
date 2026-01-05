@@ -219,6 +219,7 @@ img.product-img{
         <th>Imagen</th>
         <th>Nombre</th>
         <th>Código</th>
+        <th>Tipo Venta</th>
         <th>Categoría</th>
         <th>Precio</th>
         <th>Costo</th>
@@ -711,6 +712,10 @@ function listenProducts(){
     snapshot.forEach(docSnap => {
       const p = docSnap.data();
       if(!p.name || p.name === "init") return;
+      console.log(
+      `Producto: ${p.name} | Categoría padre (saleType):`,
+      p.saleType || "stock (default)"
+      );
 
       if(p.category) categoriesSet.add(p.category);
       if (p.code) existingCodes.add(String(p.code).trim());
@@ -741,6 +746,13 @@ function listenProducts(){
 
         <td>
           <input type="text" value="${p.code || p.id}" class="codeInput">
+        </td>
+
+        <td>
+          <select class="saleTypeSelect">
+          <option value="stock" ${p.saleType === "stock" || !p.saleType ? "selected" : ""}>Stock</option>
+          <option value="preventa" ${p.saleType === "preventa" ? "selected" : ""}>Preventa</option>
+          </select>
         </td>
 
         <td>
@@ -830,6 +842,7 @@ totalCostInput.oninput = autoCalcUnitCost;
     const discountPrice = parseFloat(tr.querySelector(".discountInput").value)||0;
     const stock = parseInt(tr.querySelector(".stockInput").value)||0;
     const active = tr.querySelector(".activeInput").checked;
+    const saleType = tr.querySelector(".saleTypeSelect")?.value || "stock";
 
     const discountPercent = price > 0
       ? Math.round(((price - discountPrice) / price) * 100)
@@ -838,6 +851,7 @@ totalCostInput.oninput = autoCalcUnitCost;
     await updateDoc(doc(db,"products",id),{
   code,
   category,
+  saleType,
   price,
   cost, // 👈
   discountPrice,
@@ -873,6 +887,7 @@ function bindEvents(){
       const discountPrice = parseFloat(tr.querySelector(".discountInput").value)||0;
       const stock = parseInt(tr.querySelector(".stockInput").value)||0;
       const active = tr.querySelector(".activeInput").checked;
+      const saleType = tr.querySelector(".saleTypeSelect")?.value || "stock";
 
       // calcular descuento %
       const discountPercent = price>0?Math.round(100*(price-discountPrice)/price):0;
@@ -880,6 +895,7 @@ function bindEvents(){
       await updateDoc(doc(db,"products",id),{
   code,
   category,
+  saleType,
   price,
   cost, // 👈
   discountPrice,
@@ -930,6 +946,11 @@ window.createNewProduct = async () => {
   const cost = parseFloat(prompt("Costo de compra:")) || 0;
   const discountPrice = parseFloat(prompt("Precio con descuento:")) || 0;
   const stock = parseInt(prompt("Stock:")) || 0;
+  const saleTypeInput = prompt("Tipo de venta (stock / preventa):") || "stock";
+  const saleType = ["stock","preventa"].includes(saleTypeInput.toLowerCase())
+  ? saleTypeInput.toLowerCase()
+  : "stock";
+
   const image = prompt(
     "URL de la imagen (ej: https://pedrorabc09-design.github.io/catalogo-164/imagenes/archivo.png)"
   ) || "";
@@ -943,6 +964,7 @@ window.createNewProduct = async () => {
   name,
   code: "ID" + Date.now(),
   category,
+  saleType,
   price,
   cost, // 👈
   discountPrice,
@@ -996,6 +1018,14 @@ progressText.innerText = `Importando 0 de ${rows.length}`;
   for (const row of rows) {
   if (!row.name) continue;
 
+  // 🧠 validar categoría padre (saleType)
+const saleType =
+  row.saleType &&
+  ["stock", "preventa"].includes(String(row.saleType).toLowerCase())
+    ? String(row.saleType).toLowerCase()
+    : "stock";
+
+
   // 🧠 obtener código por fila
   const code = String(row.code || "").trim();
 
@@ -1017,6 +1047,7 @@ progressText.innerText = `Importando 0 de ${rows.length}`;
     name: row.name,
     code: code || "ID" + Date.now() + Math.floor(Math.random() * 1000),
     category: row.category || "",
+    saleType,
     price,
     cost: Number(row.cost) || 0,
     discountPrice,
@@ -1050,6 +1081,7 @@ window.downloadProductTemplate = () => {
     name: "Nissan GT-R R34",
     code: "R34-001",
     category: "JDM",
+    saleType: "stock",
     price: 79.9,
     cost: 55,
     discountPrice: 69.9,
