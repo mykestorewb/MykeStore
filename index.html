@@ -1630,36 +1630,52 @@ function saveCart(){
   renderCart();
 }
 
-function renderCart(){
-  let total=0, count=0;
-  cartItems.innerHTML="";
-  const now=Date.now();
-  let minLeft=0, secLeft=0;
+function renderCart() {
+  const now = Date.now();
 
-  Object.values(CART).forEach(p=>{
-    const elapsed = now - p.time;
-    const left = CART_TIMEOUT - elapsed;
-    if(left <= 0) return; // si expiró, lo ignoramos
-
-    total += (p.discount?p.finalPrice:p.price)*p.qty;
-    count += p.qty;
-
-    // calcular tiempo restante de este producto
-    const minutes = Math.floor(left/60000);
-    const seconds = Math.floor((left%60000)/1000);
-    minLeft = minutes;
-    secLeft = seconds;
-
-    cartItems.innerHTML += `
-      <div class="cart-item">
-        ${p.name} x${p.qty}
-        <button onclick="removeFromCart('${p.id}')">❌</button>
-      </div>`;
+  // Revisar expiración de items
+  Object.entries(CART).forEach(([id, item]) => {
+    if (!checkoutConfirmed && now - item.time > CART_TIMEOUT) {
+      delete CART[id];
+    }
   });
 
-  cartTotal.innerText = total;
-  cartCount.innerText = count;
-  cartTimer.innerText = `(${minLeft}m ${secLeft}s)`;
+  // Guardar en localStorage
+  localStorage.setItem("cart", JSON.stringify(CART));
+
+  // Limpiar contenedor del carrito
+  cartItems.innerHTML = "";
+
+  let total = 0;
+
+  Object.values(CART).forEach(item => {
+    const linePrice = (item.discount ? item.finalPrice : item.price) * item._qty;
+    total += linePrice;
+
+    const div = document.createElement("div");
+    div.className = "cart-item";
+    div.innerHTML = `
+      <span>${item.name} x ${item._qty}</span>
+      <small>S/ ${linePrice.toFixed(2)}</small>
+      <button onclick="removeFromCart('${item.id}')">✕</button>
+    `;
+    cartItems.appendChild(div);
+  });
+
+  // Actualizar total y contador
+  cartTotal.innerText = total.toFixed(2);
+  cartCount.innerText = Object.keys(CART).length;
+
+  // Actualizar temporizador si quieres mostrarlo
+  if (Object.keys(CART).length) {
+    const earliest = Math.min(...Object.values(CART).map(i => i.time));
+    const remaining = Math.max(0, CART_TIMEOUT - (now - earliest));
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    cartTimer.innerText = ` (reserva: ${minutes}m ${seconds}s)`;
+  } else {
+    cartTimer.innerText = "";
+  }
 }
 
 // ============================
@@ -1687,59 +1703,53 @@ function removeFromCart(id){
   
 
 async function processCheckout() {
-  // 1️⃣ Validar que haya carrito
-  const cart = Object.values(CART || {});
-  if (cart.length === 0) {
-    alert("El carrito está vacío");
-    return;
-  }
-
-  // 2️⃣ Validar perfil
-  if (!currentProfile || !currentProfile.name || !currentProfile.phone) {
-    alert("Completa tu perfil antes de hacer el pedido");
-    openProfileModal();
-    return;
-  }
-
-  // 3️⃣ Preparar carrito seguro
-  const cartSafe = cart.map(p => ({
-    id: p.id,
-    name: p.name ?? "Producto",
-    price: p.price ?? 0,
-    finalPrice: p.finalPrice ?? p.price ?? 0,
-    discount: p.discount ?? 0,
-    qty: p.qty ?? 1,
-    cost: p.cost ?? 0
-  }));
-
-  // 4️⃣ Calcular total seguro
-  const total = cartSafe.reduce(
-    (sum, p) => sum + (p.discount ? p.finalPrice : p.price) * p.qty,
-    0
-  );
+  if (checkoutInProgress) return;
+  checkoutInProgress = true;
 
   try {
-    // 5️⃣ Crear orden en Firestore
+    if (!currentUser) throw "Usuario no autenticado";
+    if (!currentProfile) throw "Debes completar tus datos antes de comprar";
+
+    const cartItemsArray = Object.values(CART);
+    if (!cartItemsArray.length) throw "El carrito está vacío";
+
+    // 🔹 Sanitize cart
+    const sanitizedCart = cartItemsArray.map(item => ({
+      id: item.id,
+      name: item.name || "",
+      price: Number(item.price) || 0,
+      finalPrice: Number(item.finalPrice) || Number(item.price) || 0,
+      discount: Number(item.discount) || 0,
+      qty: Number(item.qty) || 1
+    }));
+
+    const total = sanitizedCart.reduce(
+      (sum, item) => sum + item.qty * (item.discount ? item.finalPrice : item.price),
+      0
+    );
+
+    // 🔹 Crear la orden en Firestore
     await addDoc(collection(db, "orders"), {
-      userId: auth.currentUser.uid,
+      userId: currentUser.uid,
       customerName: currentProfile.name,
       customerPhone: currentProfile.phone,
-      items: cartSafe,
-      total: total,
+      items: sanitizedCart,
+      total,
       status: "pending",
       createdAt: serverTimestamp()
     });
 
-    // 6️⃣ Limpiar carrito
+    alert("✅ Pedido creado con éxito!");
     CART = {};
-    localStorage.removeItem("cart");
+    saveCart();
     renderCart();
-    renderAll();
+    document.getElementById("checkoutModal").style.display = "none";
 
-    alert("✅ Pedido registrado correctamente");
-  } catch (err) {
-    console.error("Error al crear la orden:", err);
-    alert("❌ No se pudo registrar el pedido, intenta nuevamente");
+  } catch (e) {
+    console.error("Error al crear la orden:", e);
+    alert("❌ No se pudo crear la orden: " + e);
+  } finally {
+    checkoutInProgress = false;
   }
 }
 
@@ -1763,10 +1773,21 @@ function clearAfterCheckout(){
 
   
 // Mostrar/ocultar carrito
-function toggleCart(show){
-  document.getElementById("cart").classList.toggle("active",show);
-  document.getElementById("cart-overlay").classList.toggle("active",show);
+function toggleCart(show) {
+  const overlay = document.getElementById("cart-overlay");
+  const cart = document.getElementById("cart");
+
+  if (show) {
+    overlay.classList.add("active");
+    cart.classList.add("active");
+  } else {
+    overlay.classList.remove("active");
+    cart.classList.remove("active");
+  }
+
+  renderCart(); // ✅ importante
 }
+
 
 // Categorías
 function buildCategories(){
