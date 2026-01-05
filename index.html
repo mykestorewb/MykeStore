@@ -1950,15 +1950,6 @@ document.getElementById("cartCloseBtn").addEventListener("click", () => {
   toggleCart(false);
 });
 
-// Cerrar carrito con swipe a la derecha (UX móvil)
-let startXCart = 0;
-const cartEl = document.getElementById("cart");
-cartEl.addEventListener("touchstart", e => startXCart = e.touches[0].clientX, {passive:true});
-cartEl.addEventListener("touchend", e => {
-  const endX = e.changedTouches[0].clientX;
-  if(endX - startXCart > 80) toggleCart(false); // swipe derecha → cerrar
-});
-
   
 </script>
 
