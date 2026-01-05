@@ -217,6 +217,17 @@ main{padding:24px}
   text-align:center;
 }
 
+.estimated-delivery div:first-child{
+  font-size:11px;
+  opacity:.85;
+}
+
+.estimated-delivery div:last-child{
+  font-size:12px;
+  font-weight:700;
+}
+
+
 /* PRE ORDER BADGE */
 .preorder-badge{
   position:absolute;
@@ -1072,10 +1083,12 @@ ${
 ${
   p.saleType === "preventa" && p.estimatedDelivery
     ? `<div class="estimated-delivery">
-         📦 Entrega estimada: ${p.estimatedDelivery}
+         <div>📦 Entrega estimada</div>
+         <div>${p.estimatedDelivery}</div>
        </div>`
     : ""
 }
+
 
       <div class="qty">
         <button onclick="changeQty('${p.name}',-1)">-</button>
@@ -1211,10 +1224,12 @@ ${
   ${
   p.saleType === "preventa" && p.estimatedDelivery
     ? `<div class="estimated-delivery">
-         📦 Entrega estimada: ${p.estimatedDelivery}
+         <div>📦 Entrega estimada</div>
+         <div>${p.estimatedDelivery}</div>
        </div>`
     : ""
 }
+
 
   <div class="qty">
     <button onclick="changeQty('${p.name}',-1)">-</button>
