@@ -631,6 +631,7 @@ const CART_TIMEOUT = 60 * 60 * 1000; // 1 hora
 function listenProductsRealtime() {
   const ref = collection(db, "products");
 
+  DATA = { stock: {}, preventa: {} };
   onSnapshot(ref, (snapshot) => {
     DATA = {}; // reset limpio
 
@@ -648,10 +649,14 @@ function listenProductsRealtime() {
       // ❌ NO mostrar productos inactivos
       if (p.active === false) return;
 
-      if (!DATA[p.category]) DATA[p.category] = [];
+      const type = p.saleType === "preventa" ? "preventa" : "stock";
 
-      p._qty = 1;
-      DATA[p.category].push(p);
+if (!DATA[type]) DATA[type] = {};
+if (!DATA[type][p.category]) DATA[type][p.category] = [];
+
+p._qty = 1;
+DATA[type][p.category].push(p);
+
     });
 
     buildCategories();
@@ -885,22 +890,17 @@ function renderAll(selectedCategory = null){
 
 
 // 🔍 BÚSQUEDA POR TEXTO (PRODUCTO O CATEGORÍA)
-Object.entries(DATA).forEach(([cat, products])=>{
-  const catMatch = cat.toLowerCase().includes(q);
-
-  const filtered = catMatch
-    ? products                           // si coincide categoría → todo
-    : products.filter(p =>
-        p.name.toLowerCase().includes(q) // si no → por nombre
-      );
-
-  if(filtered.length){
-    renderSection(
-      cat,
-      filtered.sort((a,b)=>a.price-b.price)
+Object.values(DATA).forEach(group => {
+  Object.entries(group).forEach(([cat, products]) => {
+    const filtered = products.filter(p =>
+      p.name.toLowerCase().includes(q)
     );
-  }
+    if(filtered.length){
+      renderSection(cat, filtered);
+    }
+  });
 });
+
 }
 
 // Render sección
@@ -1534,32 +1534,65 @@ function toggleCart(show){
 function buildCategories(){
   categories.innerHTML = "";
 
-  Object.keys(DATA).forEach(cat => {
-    const key = cat.replace(/\s+/g, "").toLowerCase();
-    console.log("CAT:", cat, "KEY:", key, "LOGO:", BRAND_LOGOS[key]);
-    const d = document.createElement("div");
+  const parents = [
+    { key: "stock", label: "📦 Stock" },
+    { key: "preventa", label: "⏳ Preventa" }
+  ];
 
-const logo = BRAND_LOGOS[key]
-  ? `<img src="${BRAND_LOGOS[key]}" class="brand-logo">`
-  : "";
+  parents.forEach(parent => {
+    if (!DATA[parent.key] || Object.keys(DATA[parent.key]).length === 0) return;
 
-d.innerHTML = `
-  ${logo}
-  <span>${cat}</span>
-`;
+    const parentDiv = document.createElement("div");
+    parentDiv.style.fontWeight = "700";
+    parentDiv.style.background = "#f1f5f9";
+    parentDiv.style.cursor = "pointer";
+    parentDiv.innerHTML = parent.label;
 
+    const childContainer = document.createElement("div");
+    childContainer.style.display = "none";
+    childContainer.style.paddingLeft = "12px";
 
-    d.onclick = () => {
-    search.value = "";
-    renderAll(cat);
-    closeCategories(); // 👈 cierre limpio y consistente
-};
+    parentDiv.onclick = () => {
+      childContainer.style.display =
+        childContainer.style.display === "none" ? "block" : "none";
+    };
 
+    Object.keys(DATA[parent.key]).forEach(cat => {
+      const key = cat.replace(/\s+/g,"").toLowerCase();
 
-    categories.appendChild(d);
+      const child = document.createElement("div");
+      child.style.display = "flex";
+      child.style.alignItems = "center";
+      child.style.gap = "10px";
+      child.style.padding = "10px";
+
+      const logo = BRAND_LOGOS[key]
+        ? `<img src="${BRAND_LOGOS[key]}" class="brand-logo">`
+        : "";
+
+      child.innerHTML = `${logo}<span>${cat}</span>`;
+
+      child.onclick = () => {
+        search.value = "";
+        renderByTypeAndCategory(parent.key, cat);
+        closeCategories();
+      };
+
+      childContainer.appendChild(child);
+    });
+
+    categories.appendChild(parentDiv);
+    categories.appendChild(childContainer);
   });
 }
 
+function renderByTypeAndCategory(type, category){
+  currentPage = 1;
+  const products = DATA[type][category] || [];
+  renderCategoryGrid(`${category} (${type})`, products);
+}
+  
+  
 function toggleCategories(){
   const open = categories.style.display !== "block";
   categories.style.display = open ? "block" : "none";
