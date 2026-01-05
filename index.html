@@ -184,6 +184,104 @@ main{padding:24px}
 .discount-badge{position:absolute;top:10px;left:10px;background:#dc2626;color:white;font-size:12px;padding:4px 8px;border-radius:10px}
 .last-unit{position:absolute;top:10px;right:10px;background:#f59e0b;color:white;font-size:12px;padding:4px 8px;border-radius:10px}
 .out-stock{position:absolute;top:10px;right:10px;background:#6b7280;color:white;font-size:12px;padding:4px 8px;border-radius:10px}
+.in-stock{
+  position:absolute;
+  top:10px;
+  right:10px;
+  background:#16a34a;
+  color:white;
+  font-size:12px;
+  padding:4px 8px;
+  border-radius:10px;
+}
+
+.pre-order{
+  position:absolute;
+  top:10px;
+  right:10px;
+  background:#6366f1;
+  color:white;
+  font-size:12px;
+  padding:4px 8px;
+  border-radius:10px;
+}
+
+.estimated-delivery{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:600;
+  color:#4f46e5;       /* violeta elegante */
+  background:#eef2ff;
+  padding:4px 8px;
+  border-radius:8px;
+  text-align:center;
+}
+
+/* PRE ORDER BADGE */
+.preorder-badge{
+  position:absolute;
+  top:10px;
+  left:10px;
+  background:#7c3aed; /* violeta */
+  color:white;
+  font-size:12px;
+  font-weight:700;
+  padding:4px 10px;
+  border-radius:10px;
+  cursor:help;
+}
+
+/* ENTREGA ESTIMADA */
+.estimated-delivery{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:600;
+  color:#4f46e5;
+  background:#eef2ff;
+  padding:4px 8px;
+  border-radius:8px;
+  text-align:center;
+}
+
+/* TOOLTIP */
+.tooltip{
+  position:relative;
+  display:inline-block;
+}
+
+.tooltip .tooltip-text{
+  visibility:hidden;
+  width:220px;
+  background:#111827;
+  color:#fff;
+  text-align:left;
+  padding:8px 10px;
+  border-radius:8px;
+  font-size:12px;
+  line-height:1.4;
+  position:absolute;
+  z-index:99;
+  bottom:125%;
+  left:50%;
+  transform:translateX(-50%);
+  opacity:0;
+  transition:.2s;
+}
+
+.tooltip:hover .tooltip-text{
+  visibility:visible;
+  opacity:1;
+}
+
+/* Mobile: mostrar tooltip al tap */
+@media (max-width: 768px){
+  .tooltip:hover .tooltip-text{
+    visibility:hidden;
+    opacity:0;
+  }
+}
+
+
 
 /* QTY */
 .qty{display:flex;justify-content:center;gap:8px;margin:6px 0}
@@ -887,21 +985,26 @@ function renderAll(selectedCategory = null){
   );
   return;
 }
-
-
 // 🔍 BÚSQUEDA POR TEXTO (PRODUCTO O CATEGORÍA)
-Object.values(DATA).forEach(group => {
-  Object.entries(group).forEach(([cat, products]) => {
-    const filtered = products.filter(p =>
-      p.name.toLowerCase().includes(q)
-    );
-    if(filtered.length){
-      renderSection(cat, filtered);
+  
+// 🔍 HOME: solo STOCK
+if (!isSearching) {
+  Object.entries(DATA.stock || {}).forEach(([cat, products]) => {
+    if (products.length) {
+      renderSection(cat, products);
     }
   });
-});
 
+  // 👉 Si una categoría NO existe en stock, mostrarla desde preventa
+  Object.entries(DATA.preventa || {}).forEach(([cat, products]) => {
+    if (!DATA.stock?.[cat] && products.length) {
+      renderSection(`${cat} (Preventa)`, products);
+    }
+  });
+
+  return;
 }
+
 
 // Render sección
 function renderSection(title, products){
@@ -933,20 +1036,55 @@ function renderSection(title, products){
     const c = document.createElement("div");
     c.className = "card" + (a <= 0 ? " disabled" : "");
     c.innerHTML = `
-      ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
-      ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
+      ${
+  p.saleType === "preventa"
+    ? `
+      <div class="tooltip preorder-badge">
+        PRE-ORDER
+        <span class="tooltip-text">
+          Este producto es una preventa.<br>
+          La entrega se realizará en la fecha estimada.
+        </span>
+      </div>
+    `
+    : p.discount
+      ? `<div class="discount-badge">-${p.discount}%</div>`
+      : ""
+}
+
+${
+  p.saleType !== "preventa" && a === 1
+    ? `<div class="last-unit">Última unidad</div>`
+    : ""
+}
+
       <img src="${p.image}" onclick="showDetailById('${p.id}')">
       <h3 onclick="showDetailById('${p.id}')">
        ${p.name}
       </h3>
 
-      <div>${p.discount ? `<span class="old-price">S/ ${p.price}</span>` : ""}<span class="price">S/ ${p.discount ? p.finalPrice : p.price}</span></div>
+      <div>
+  ${p.discount ? `<span class="old-price">S/ ${p.price}</span>` : ""}
+  <span class="price">S/ ${p.discount ? p.finalPrice : p.price}</span>
+</div>
+
+${
+  p.saleType === "preventa" && p.estimatedDelivery
+    ? `<div class="estimated-delivery">
+         📦 Entrega estimada: ${p.estimatedDelivery}
+       </div>`
+    : ""
+}
+
       <div class="qty">
         <button onclick="changeQty('${p.name}',-1)">-</button>
         <span class="q-span">${p._qty}</span>
         <button onclick="changeQty('${p.name}',1)">+</button>
       </div>
-      <button class="add-btn" onclick="addToCart('${p.name}')">Añadir al carrito</button>
+      <button class="add-btn" onclick="addToCart('${p.name}')">
+  ${p.saleType === "preventa" ? "Reservar" : "Añadir al carrito"}
+</button>
+
       <button class="buy-btn" onclick="buyNow('${p.name}')"><img src="imagenes/whatsapp-logo.png" style="width:16px;"> Comprar ahora</button>
     `;
     track.appendChild(c);
@@ -1032,8 +1170,29 @@ window.addEventListener("resize", () => {
     const c = document.createElement("div");
     c.className = "card" + (a <= 0 ? " disabled" : "");
     c.innerHTML = `
-  ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
-  ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
+  ${
+  p.saleType === "preventa"
+    ? `
+      <div class="tooltip preorder-badge">
+        PRE-ORDER
+        <span class="tooltip-text">
+          Producto en preventa.<br>
+          La reserva asegura tu unidad.
+        </span>
+      </div>
+    `
+    : p.discount
+      ? `<div class="discount-badge">-${p.discount}%</div>`
+      : ""
+}
+
+${
+  p.saleType !== "preventa" && a === 1
+    ? `<div class="last-unit">Última unidad</div>`
+    : p.saleType !== "preventa" && a <= 0
+      ? `<div class="out-stock">Agotado</div>`
+      : ""
+}
 
   <img src="${p.image}" onclick="showDetailById('${p.id}')">
 
@@ -1048,13 +1207,23 @@ window.addEventListener("resize", () => {
     <span class="price">S/ ${p.discount ? p.finalPrice : p.price}</span>
   </div>
 
+  ${
+  p.saleType === "preventa" && p.estimatedDelivery
+    ? `<div class="estimated-delivery">
+         📦 Entrega estimada: ${p.estimatedDelivery}
+       </div>`
+    : ""
+}
+
   <div class="qty">
     <button onclick="changeQty('${p.name}',-1)">-</button>
     <span class="q-span">${p._qty}</span>
     <button onclick="changeQty('${p.name}',1)">+</button>
   </div>
 
-  <button class="add-btn" onclick="addToCart('${p.name}')">Añadir al carrito</button>
+  <button class="add-btn" onclick="addToCart('${p.name}')">
+  ${p.saleType === "preventa" ? "Reservar" : "Añadir al carrito"}
+</button>
   <button class="buy-btn" onclick="buyNow('${p.name}')">
     <img src="imagenes/whatsapp-logo.png" style="width:16px;">
     Comprar ahora
@@ -1202,14 +1371,38 @@ imgs.forEach(src => {
   </div>
   <div class="detail-info">
     <h2>${p.name}</h2>
-    <p>Stock disponible: ${available(p)}</p>
-    <p class="price">S/ ${p.discount?p.finalPrice:p.price}</p>
+
+  ${
+  p.saleType === "preventa"
+    ? `
+      <div class="tooltip" style="margin-bottom:6px">
+        <strong style="color:#7c3aed">PRE-ORDER</strong>
+        <span class="tooltip-text">
+          Producto en preventa.<br>
+          La reserva asegura tu unidad.<br>
+          Entrega en la fecha indicada.
+        </span>
+      </div>
+
+      <p style="font-weight:600;color:#4f46e5">
+        📦 Entrega estimada: ${p.estimatedDelivery || "Por confirmar"}
+      </p>
+    `
+    : `
+      <p>Stock disponible: ${available(p)}</p>
+    `
+}
+<p class="price">S/ ${p.discount ? p.finalPrice : p.price}</p>
+
     <div class="qty">
       <button onclick="changeQty('${p.name}',-1)">-</button>
       <span class="q-span">${p._qty}</span>
       <button onclick="changeQty('${p.name}',1)">+</button>
     </div>
-    <button class="add-btn" onclick="addToCart('${p.name}')">Añadir al carrito</button>
+    <button class="add-btn" onclick="addToCart('${p.name}')">
+  ${p.saleType === "preventa" ? "Reservar" : "Añadir al carrito"}
+</button>
+
     <!-- Icono WhatsApp más pequeño -->
     <button class="buy-btn" onclick="buyNow('${p.name}')"><img src="imagenes/whatsapp-logo.png" style="width:16px;"> Comprar ahora</button>
   </div>
@@ -1304,7 +1497,12 @@ if (slider) {
 // Cambiar cantidad
 function changeQty(name,d){
   const p=Object.values(DATA).flat().find(x=>x.name===name);
-  p._qty=Math.max(1,Math.min(available(p),p._qty+d));
+  if (p.saleType === "preventa") {
+  p._qty = Math.max(1, p._qty + d);
+} else {
+  p._qty = Math.max(1, Math.min(available(p), p._qty + d));
+}
+
   document.querySelectorAll(`.q-span`).forEach(e=>{
     if(e.closest(".card")?.querySelector("h3")?.innerText===name || e.closest(".detail-info")) e.innerText=p._qty;
   });
@@ -1323,7 +1521,12 @@ async function addToCart(name){
     return;
   }
 
-  const ok = await reserveStock(p.id, p._qty);
+  let ok = true;
+
+if (p.saleType !== "preventa") {
+  ok = await reserveStock(p.id, p._qty);
+}
+
 
   if(!ok){
     alert("⚠️ Stock insuficiente");
