@@ -175,6 +175,12 @@ img.product-img{
 </div>
 <div id="productsSection">
   <button id="newProductBtn" onclick="createNewProduct()">➕ Crear Nuevo Producto</button>
+  <!-- 🔎 FILTROS PRODUCTOS -->
+<div style="margin:15px 0;display:flex;gap:10px;flex-wrap:wrap">
+  <button onclick="setProductFilter('all')">📦 Todos</button>
+  <button onclick="setProductFilter('stock')">✅ Stock</button>
+  <button onclick="setProductFilter('preventa')">⏳ Preventa</button>
+</div>
   <button id="saveAllBtn" style="margin:15px 0;padding:8px 14px;">
   💾 Guardar todos los cambios
 </button>
@@ -220,6 +226,7 @@ img.product-img{
         <th>Nombre</th>
         <th>Código</th>
         <th>Tipo Venta</th>
+        <th>Entrega estimada</th>
         <th>Categoría</th>
         <th>Precio</th>
         <th>Costo</th>
@@ -684,6 +691,14 @@ function login(){
 // Escucha productos en tiempo real
 let categoriesSet = new Set();
 let existingCodes = new Set();
+// 🔎 filtro actual productos
+let currentProductFilter = "all";
+
+window.setProductFilter = (type)=>{
+  currentProductFilter = type;
+  listenProducts();
+};
+
 
 // 🔀 Cambiar sección visible
 window.showSection = (id)=>{
@@ -732,7 +747,17 @@ function listenProducts(){
 
     // ✅ PASO 2: renderizar filas ya con TODAS las categorías
     products.forEach(p => {
-      const tr = document.createElement("tr");
+
+  // 🔍 aplicar filtro (REFERENCIA CLAVE)
+  if (
+    currentProductFilter !== "all" &&
+    (p.saleType || "stock") !== currentProductFilter
+  ) {
+    return;
+  }
+
+  const tr = document.createElement("tr");
+
       tr.dataset.id = p.id;
       tr.dataset.changed = "false";
 
@@ -754,6 +779,17 @@ function listenProducts(){
           <option value="preventa" ${p.saleType === "preventa" ? "selected" : ""}>Preventa</option>
           </select>
         </td>
+
+        <td>
+  <input
+    type="text"
+    class="deliveryInput"
+    placeholder="Ej: Marzo 2026"
+    value="${p.estimatedDelivery || ""}"
+    style="${p.saleType === "preventa" ? "" : "display:none"}"
+  >
+</td>
+
 
         <td>
           <select class="categorySelect">
@@ -794,6 +830,23 @@ tr.querySelectorAll("input, select").forEach(el => {
     tr.style.background = "#fff7ed";
   };
 });
+
+      // 🔁 mostrar/ocultar entrega estimada
+const saleTypeSelect = tr.querySelector(".saleTypeSelect");
+const deliveryInput = tr.querySelector(".deliveryInput");
+
+saleTypeSelect.onchange = ()=>{
+  tr.dataset.changed = "true";
+  tr.style.background = "#fff7ed";
+
+  if(saleTypeSelect.value === "preventa"){
+    deliveryInput.style.display = "";
+  }else{
+    deliveryInput.style.display = "none";
+    deliveryInput.value = "";
+  }
+};
+
 
   const unitsInput = tr.querySelector(".unitsInput");
   const totalCostInput = tr.querySelector(".totalCostInput");
@@ -843,6 +896,11 @@ totalCostInput.oninput = autoCalcUnitCost;
     const stock = parseInt(tr.querySelector(".stockInput").value)||0;
     const active = tr.querySelector(".activeInput").checked;
     const saleType = tr.querySelector(".saleTypeSelect")?.value || "stock";
+    const estimatedDelivery =
+  saleType === "preventa"
+    ? tr.querySelector(".deliveryInput")?.value || ""
+    : "";
+
 
     const discountPercent = price > 0
       ? Math.round(((price - discountPrice) / price) * 100)
@@ -852,6 +910,7 @@ totalCostInput.oninput = autoCalcUnitCost;
   code,
   category,
   saleType,
+  estimatedDelivery,
   price,
   cost, // 👈
   discountPrice,
@@ -888,6 +947,11 @@ function bindEvents(){
       const stock = parseInt(tr.querySelector(".stockInput").value)||0;
       const active = tr.querySelector(".activeInput").checked;
       const saleType = tr.querySelector(".saleTypeSelect")?.value || "stock";
+      const estimatedDelivery =
+  saleType === "preventa"
+    ? tr.querySelector(".deliveryInput")?.value || ""
+    : "";
+
 
       // calcular descuento %
       const discountPercent = price>0?Math.round(100*(price-discountPrice)/price):0;
@@ -896,6 +960,7 @@ function bindEvents(){
   code,
   category,
   saleType,
+  estimatedDelivery,
   price,
   cost, // 👈
   discountPrice,
@@ -965,6 +1030,9 @@ window.createNewProduct = async () => {
   code: "ID" + Date.now(),
   category,
   saleType,
+  estimatedDelivery: saleType === "preventa"
+  ? prompt("Entrega estimada (ej: Marzo 2026):") || ""
+  : "",
   price,
   cost, // 👈
   discountPrice,
@@ -1048,6 +1116,10 @@ const saleType =
     code: code || "ID" + Date.now() + Math.floor(Math.random() * 1000),
     category: row.category || "",
     saleType,
+    estimatedDelivery:
+      saleType === "preventa" && row.estimatedDelivery
+      ? String(row.estimatedDelivery).trim()
+      : "",
     price,
     cost: Number(row.cost) || 0,
     discountPrice,
@@ -1056,6 +1128,11 @@ const saleType =
     active: String(row.active).toLowerCase() !== "false",
     image: row.image || ""
   });
+
+  if (saleType === "preventa" && !row.estimatedDelivery) {
+  console.warn("⚠ Preventa sin entrega estimada:", row.name);
+}
+
 
   // 🧠 registrar código ya usado
   if (code) existingCodes.add(code);
@@ -1081,7 +1158,8 @@ window.downloadProductTemplate = () => {
     name: "Nissan GT-R R34",
     code: "R34-001",
     category: "JDM",
-    saleType: "stock",
+    saleType: "preventa",
+    estimatedDelivery: "Marzo 2026",
     price: 79.9,
     cost: 55,
     discountPrice: 69.9,
