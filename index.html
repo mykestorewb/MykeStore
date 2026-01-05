@@ -960,23 +960,35 @@ async function createOrder(customerName, customerPhone) {
 })();
 
 onAuthStateChanged(auth, async (user) => {
+
+  // 👻 SI NO HAY USUARIO → LOGIN ANÓNIMO AUTOMÁTICO
   if (!user) {
-    openLoginModal();
+    await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js")
+      .then(({ signInAnonymously }) => signInAnonymously(auth));
     return;
   }
 
+  // ✅ YA HAY USUARIO (anónimo o con teléfono)
   currentUser = user;
+  console.log("AUTH UID:", user.uid, "anon:", user.isAnonymous);
 
-  // buscar perfil
+  // 🔹 Si es anónimo, NO pedimos perfil todavía
+  if (user.isAnonymous) {
+    currentProfile = null;
+    return;
+  }
+
+  // 🔹 Usuario con teléfono → buscar perfil
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
 
   if (!snap.exists()) {
-    openProfileModal(); // pedir nombre
+    openProfileModal();
   } else {
     currentProfile = snap.data();
   }
 });
+
 
 
 // ==== FUNCIONES ====
