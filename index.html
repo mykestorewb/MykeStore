@@ -1015,7 +1015,6 @@ function checkExpiredCart(){
   Object.entries(CART).forEach(([id, item])=>{
     if(now - item.time > CART_TIMEOUT){
   // solo liberar si NO se confirmó pedido
-  releaseStock(item.id, item.qty);
   delete CART[id];
   }
 });
@@ -1632,10 +1631,6 @@ async function addToCart(name){
 
   let ok = true;
 
-if (p.saleType !== "preventa") {
-  ok = await reserveStock(p.id, p._qty);
-}
-
 
   if(!ok){
     alert("⚠️ Stock insuficiente");
@@ -1729,108 +1724,66 @@ if(cartEl){
 }
 
 function removeFromCart(id){
-  const item = CART[id];
-  if(item){
-    releaseStock(item.id, item.qty);
-    delete CART[id];
-    saveCart();
-  }
+  delete CART[id];
+  saveCart();
+}
 }
   
 
 async function processCheckout() {
-  if (checkoutInProgress) return;
 
-checkoutInProgress = true;
-  // 👤 Datos del cliente desde perfil autenticado
-if (!currentProfile) {
-  alert("Debes completar tu perfil");
-  checkoutInProgress = false;
+  if (!auth.currentUser || auth.currentUser.isAnonymous) {
+  openLoginModal();
   return;
 }
 
-const customerName = currentProfile.name;
-const customerPhone = currentProfile.phone;
-
-
-
-  const btn = document.getElementById("checkoutBtn");
-  if (btn) {
-  btn.disabled = true;
-  btn.innerText = "Procesando pedido...";
-}
-
-  if(Object.keys(CART).length === 0){
-  alert("El carrito está vacío");
-  checkoutInProgress = false;
-  if (btn) {
-    btn.disabled = false;
-    btn.innerText = "Finalizar por WhatsApp";
-  }
-  return;
-}
-
-
-
-  const ok = await validateCartStock();
-  if(!ok){
-    alert("⚠️ Algunos productos ya no tienen stock");
+  if (!currentProfile) {
+    openProfileModal();
     return;
   }
 
-  // 🔒 confirmar stock (NO se devuelve)
-  await confirmStock();
+  const cart = Object.values(CART);
+  if (cart.length === 0) {
+    alert("Carrito vacío");
+    return;
+  }
 
-  // 👤 DATOS DEL CLIENTE
-if (!customerName) {
-  alert("El nombre es obligatorio");
-  checkoutInProgress = false;
-  sessionStorage.removeItem("checkoutConfirmed");
-  return;
-}
+  // 1️⃣ validar stock
+  for (const item of cart) {
+    const snap = await getDoc(doc(db, "products", item.id));
+    if (!snap.exists() || snap.data().stock < item.qty) {
+      alert("Stock insuficiente");
+      return;
+    }
+  }
 
-if (!customerPhone) {
-  alert("El celular es obligatorio");
-  checkoutInProgress = false;
-  sessionStorage.removeItem("checkoutConfirmed");
-  return;
-}
+  // 2️⃣ descontar stock
+  for (const item of cart) {
+    await reserveStock(item.id, item.qty);
+  }
 
-  
-  // 📦 crear pedido
-  const orderId = await createOrder(customerName, customerPhone);
-
-  // 📲 WhatsApp
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("es-PE");
-  const timeStr = now.toLocaleTimeString("es-PE",{hour:'2-digit',minute:'2-digit'});
-
-  let msg = `Hola 👋%0A`;
-  msg += `Cliente: ${customerName}%0A`;
-  msg += `Celular: ${customerPhone}%0A%0A`;
-  msg += `Pedido: *${orderId}*%0A`;
-  msg += `Fecha: ${dateStr} ${timeStr}%0A%0A`;
-  msg += `Productos:%0A`;
-
-  Object.values(CART).forEach(p=>{
-    msg += `• ${p.name} x${p.qty}%0A`;
+  // 3️⃣ crear orden
+  await addDoc(collection(db, "orders"), {
+    userId: auth.currentUser.uid,
+    customerName: currentProfile.name,
+    customerPhone: currentUser.phoneNumber,
+    items: cart,
+    total: cart.reduce(
+      (s,p)=>s+(p.discount?p.finalPrice:p.price)*p.qty,0
+    ),
+    status: "pending",
+    createdAt: serverTimestamp()
   });
 
-  // 🧹 limpiar carrito
+  // 4️⃣ limpiar carrito
   CART = {};
   localStorage.removeItem("cart");
   renderCart();
-  checkoutConfirmed = true;
-  sessionStorage.setItem("checkoutConfirmed", "1");
+  renderAll();
 
-
-  window.open(
-  `https://wa.me/51942434659?text=${msg}`,
-  "_blank"
-);
-
-  checkoutInProgress = false;
+  alert("✅ Pedido registrado correctamente");
 }
+
 
 
 function clearAfterCheckout(){
@@ -1847,31 +1800,6 @@ function clearAfterCheckout(){
 
   renderCart();
   renderAll();
-}
-
-
-
-async function saveOrder(orderId) {
-  const items = [];
-  let total = 0;
-
-  Object.values(CART).forEach(p => {
-    const price = p.discount ? p.finalPrice : p.price;
-    items.push({
-      name: p.name,
-      qty: p.qty,
-      price: price
-    });
-    total += price * p.qty;
-  });
-
-  await addDoc(collection(db, "orders"), {
-    orderId: orderId,
-    items: items,
-    total: total,
-    status: "pendiente",
-    createdAt: serverTimestamp()
-  });
 }
 
   
@@ -2018,6 +1946,7 @@ window.goDetailImg = goDetailImg;
 window.closeCategories = closeCategories;
 window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
+window.processCheckout = processCheckout;
 window.showDetailById = showDetailById;
 
 // Cerrar carrito al tocar el botón ✕
