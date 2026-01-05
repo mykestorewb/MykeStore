@@ -1687,55 +1687,60 @@ function removeFromCart(id){
   
 
 async function processCheckout() {
+  // 1️⃣ Validar que haya carrito
+  const cart = Object.values(CART || {});
+  if (cart.length === 0) {
+    alert("El carrito está vacío");
+    return;
+  }
 
-  if (!auth.currentUser || auth.currentUser.isAnonymous) {
-  openLoginModal();
-  return;
-}
-
-  if (!currentProfile) {
+  // 2️⃣ Validar perfil
+  if (!currentProfile || !currentProfile.name || !currentProfile.phone) {
+    alert("Completa tu perfil antes de hacer el pedido");
     openProfileModal();
     return;
   }
 
-  const cart = Object.values(CART);
-  if (cart.length === 0) {
-    alert("Carrito vacío");
-    return;
+  // 3️⃣ Preparar carrito seguro
+  const cartSafe = cart.map(p => ({
+    id: p.id,
+    name: p.name ?? "Producto",
+    price: p.price ?? 0,
+    finalPrice: p.finalPrice ?? p.price ?? 0,
+    discount: p.discount ?? 0,
+    qty: p.qty ?? 1,
+    cost: p.cost ?? 0
+  }));
+
+  // 4️⃣ Calcular total seguro
+  const total = cartSafe.reduce(
+    (sum, p) => sum + (p.discount ? p.finalPrice : p.price) * p.qty,
+    0
+  );
+
+  try {
+    // 5️⃣ Crear orden en Firestore
+    await addDoc(collection(db, "orders"), {
+      userId: auth.currentUser.uid,
+      customerName: currentProfile.name,
+      customerPhone: currentProfile.phone,
+      items: cartSafe,
+      total: total,
+      status: "pending",
+      createdAt: serverTimestamp()
+    });
+
+    // 6️⃣ Limpiar carrito
+    CART = {};
+    localStorage.removeItem("cart");
+    renderCart();
+    renderAll();
+
+    alert("✅ Pedido registrado correctamente");
+  } catch (err) {
+    console.error("Error al crear la orden:", err);
+    alert("❌ No se pudo registrar el pedido, intenta nuevamente");
   }
-
-  // 2️⃣ descontar stock
-for (const item of cart) {
-  const ref = doc(db, "products", item.id);
-  const snap = await getDoc(ref);
-  if (!snap.exists() || snap.data().stock < item.qty) {
-    alert("Stock insuficiente");
-    return;
-  }
-}
-
-
-
-  // 3️⃣ crear orden
-  await addDoc(collection(db, "orders"), {
-    userId: auth.currentUser.uid,
-    customerName: currentProfile.name,
-    customerPhone: currentProfile.phone,
-    items: cart,
-    total: cart.reduce(
-      (s,p)=>s+(p.discount?p.finalPrice:p.price)*p.qty,0
-    ),
-    status: "pending",
-    createdAt: serverTimestamp()
-  });
-
-  // 4️⃣ limpiar carrito
-  CART = {};
-  localStorage.removeItem("cart");
-  renderCart();
-  renderAll();
-
-  alert("✅ Pedido registrado correctamente");
 }
 
 
