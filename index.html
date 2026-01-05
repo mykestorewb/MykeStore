@@ -91,7 +91,7 @@ header{
   min-width:36px;
   min-height:36px;
   object-fit:contain;
-  display:inline-block; /* ⬅️ cambiar */
+  display:block;
 }
 
 .product-name-wrap{
@@ -612,12 +612,6 @@ const BRAND_LOGOS = {
   "kaidohouse": "imagenes/brands/kaidohouse.png"
 };
 
-// Línea 146: normalizar nombres de categorías para buscar logos
-function normalizeCategory(cat) {
-  return cat.replace(/\s+/g,"").toLowerCase();
-}
-
-
 //const RESERVE_TIME=60*60*1000; // 1 hora
 let cartTimeout;
 let checkoutInProgress = false;
@@ -866,24 +860,6 @@ function renderAll(selectedCategory = null){
   const q = search.value.toLowerCase().trim();
   const isSearching = q !== "" || selectedCategory !== null;
 
-  // 🔹 Filtrar según Stock o Preventa
-let filteredData = DATA;
-
-if(selectedCategory === "Stock") {
-  filteredData = {};
-  Object.keys(DATA).forEach(cat => {
-    const items = DATA[cat].filter(p => p.stock > 0);
-    if(items.length) filteredData[cat] = items;
-  });
-} else if(selectedCategory === "Preventa") {
-  filteredData = {};
-  Object.keys(DATA).forEach(cat => {
-    const items = DATA[cat].filter(p => p.stock === 0);
-    if(items.length) filteredData[cat] = items;
-  });
-}
-
-
   if(!isSearching){
     const offers = Object.values(DATA)
       .flat()
@@ -909,14 +885,20 @@ if(selectedCategory === "Stock") {
 
 
 // 🔍 BÚSQUEDA POR TEXTO (PRODUCTO O CATEGORÍA)
-Object.entries(filteredData).forEach(([cat, products])=>{
+Object.entries(DATA).forEach(([cat, products])=>{
   const catMatch = cat.toLowerCase().includes(q);
+
   const filtered = catMatch
-    ? products
-    : products.filter(p => p.name.toLowerCase().includes(q));
+    ? products                           // si coincide categoría → todo
+    : products.filter(p =>
+        p.name.toLowerCase().includes(q) // si no → por nombre
+      );
 
   if(filtered.length){
-    renderSection(cat, filtered.sort((a,b)=>a.price-b.price));
+    renderSection(
+      cat,
+      filtered.sort((a,b)=>a.price-b.price)
+    );
   }
 });
 }
@@ -928,11 +910,10 @@ function renderSection(title, products){
   s.innerHTML = `
 <h2 class="section-title">
   ${
-  BRAND_LOGOS[normalizeCategory(title)]
-    ? `<img src="${BRAND_LOGOS[normalizeCategory(title)]}" class="section-brand-logo">`
-    : ""
-}
-
+    BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
+      ? `<img src="${BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]}" class="section-brand-logo">`
+      : ""
+  }
   <span>${title}</span>
 </h2>
 
@@ -1016,11 +997,12 @@ function renderCategoryGrid(title, products){
   section.innerHTML = `
     <h2 class="section-title">
       ${
-  BRAND_LOGOS[normalizeCategory(title)]
-    ? `<img src="${BRAND_LOGOS[normalizeCategory(title)]}" class="section-brand-logo">`
-    : ""
-}
-
+        BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
+          ? `<img src="${
+              BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
+            }" class="section-brand-logo">`
+          : ""
+      }
       <span>${title}</span>
     </h2>
 
@@ -1549,39 +1531,32 @@ function toggleCart(show){
 }
 
 // Categorías
-function buildCategories() {
+function buildCategories(){
   categories.innerHTML = "";
 
-  // Categorías padre
-  const parents = ["Stock", "Preventa"];
+  Object.keys(DATA).forEach(cat => {
+    const key = cat.replace(/\s+/g, "").toLowerCase();
+    console.log("CAT:", cat, "KEY:", key, "LOGO:", BRAND_LOGOS[key]);
+    const d = document.createElement("div");
 
-  parents.forEach(parent => {
-    const parentDiv = document.createElement("div");
-    parentDiv.style.fontWeight = "700";
-    parentDiv.style.fontSize = "20px";
-    parentDiv.innerText = parent;
-    categories.appendChild(parentDiv);
+const logo = BRAND_LOGOS[key]
+  ? `<img src="${BRAND_LOGOS[key]}" class="brand-logo">`
+  : "";
 
-    // Subcategorías (marcas) dentro
-    const brands = Object.keys(DATA); // tus categorías actuales
-    brands.forEach(brand => {
-      // Filtrar según disponibilidad
-      let products = DATA[brand] || [];
-      const filteredProducts = parent === "Stock"
-        ? products.filter(p => p.stock > 0)
-        : products.filter(p => p.stock === 0); // o cualquier condición de preventa
+d.innerHTML = `
+  ${logo}
+  <span>${cat}</span>
+`;
 
-      if(filteredProducts.length === 0) return; // no mostrar si no hay productos
 
-      const brandDiv = document.createElement("div");
-      brandDiv.className = "product-name-wrap";
-      brandDiv.innerHTML = `
-        <img class="brand-logo" src="${BRAND_LOGOS[brand.toLowerCase()] || ''}">
-        <span>${brand}</span>
-      `;
-      brandDiv.onclick = () => renderAll(brand); // renderiza productos al click
-      categories.appendChild(brandDiv);
-    });
+    d.onclick = () => {
+    search.value = "";
+    renderAll(cat);
+    closeCategories(); // 👈 cierre limpio y consistente
+};
+
+
+    categories.appendChild(d);
   });
 }
 
