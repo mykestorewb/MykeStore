@@ -1583,39 +1583,6 @@ function changeQty(name,d){
 // Carrito
 let reserving = false;
 
-async function addToCart(name){
-  if(reserving) return;
-  reserving = true;
-
-  const p = Object.values(DATA)
-  .flatMap(type => Object.values(type || {}).flat())
-.find(x => x.name === name);
-  if(!p){
-    reserving = false;
-    return;
-  }
-
-  if (!CART[p.id]) {
-  CART[p.id] = {
-    id: p.id,
-    name: p.name,
-    price: p.price,
-    finalPrice: p.finalPrice,
-    discount: p.discount,
-    cost: p.cost ?? 0,
-    qty: 0,
-    time: Date.now()
-  };
-}
-CART[p.id].qty += p._qty;
-CART[p.id].time = Date.now();
-
-
-  saveCart();
-  reserving = false;
-}
-
-
 function buyNow(name){addToCart(name);toggleCart(true)}
 function goHome(){
   stopDetailSlider(); // 👈 importante
