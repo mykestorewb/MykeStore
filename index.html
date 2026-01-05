@@ -1011,6 +1011,20 @@ function renderCategoryGrid(title, products){
   `;
 
   const grid = section.querySelector(".grid-products");
+  // 🔹 Forzar 2 columnas en móvil
+if (window.innerWidth <= 768) {
+  grid.style.display = "grid";
+  grid.style.gridTemplateColumns = "repeat(2, 1fr)";
+  grid.style.gap = "12px";
+}
+
+// 🔹 Ajustar al redimensionar pantalla
+window.addEventListener("resize", () => {
+  if (!grid) return;
+  grid.style.gridTemplateColumns =
+    window.innerWidth <= 768 ? "repeat(2, 1fr)" : "repeat(auto-fill,minmax(220px,1fr))";
+});
+
   const pagination = section.querySelector(".pagination");
 
   pageProducts.forEach(p=>{
