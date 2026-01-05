@@ -624,6 +624,17 @@ main{padding:24px}
 
 <div id="cart-overlay" onclick="toggleCart(false)"></div>
 <div id="cart">
+  <button id="cartCloseBtn" style="
+  position:absolute;
+  top:12px;
+  right:12px;
+  background:none;
+  border:none;
+  font-size:24px;
+  font-weight:bold;
+  cursor:pointer;
+">✕</button>
+  
   <!-- MODAL CHECKOUT -->
 <div id="checkoutModal" style="
   display:none;
@@ -1633,6 +1644,24 @@ function renderCart(){
   cartTimer.innerText = `(${minLeft}m ${secLeft}s)`;
 }
 
+// ============================
+// Cerrar carrito (botón y swipe)
+// ============================
+const cartCloseBtn = document.getElementById("cartCloseBtn");
+if(cartCloseBtn) {
+  cartCloseBtn.addEventListener("click", () => toggleCart(false));
+}
+
+let startXCart = 0;
+const cartEl = document.getElementById("cart");
+if(cartEl){
+  cartEl.addEventListener("touchstart", e => startXCart = e.touches[0].clientX, {passive:true});
+  cartEl.addEventListener("touchend", e => {
+    const endX = e.changedTouches[0].clientX;
+    if(endX - startXCart > 80) toggleCart(false);
+  });
+}
+
 function removeFromCart(id){
   const item = CART[id];
   if(item){
@@ -1915,6 +1944,20 @@ window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
 window.confirmCheckout = confirmCheckout;
 window.showDetailById = showDetailById;
+
+// Cerrar carrito al tocar el botón ✕
+document.getElementById("cartCloseBtn").addEventListener("click", () => {
+  toggleCart(false);
+});
+
+// Cerrar carrito con swipe a la derecha (UX móvil)
+let startXCart = 0;
+const cartEl = document.getElementById("cart");
+cartEl.addEventListener("touchstart", e => startXCart = e.touches[0].clientX, {passive:true});
+cartEl.addEventListener("touchend", e => {
+  const endX = e.changedTouches[0].clientX;
+  if(endX - startXCart > 80) toggleCart(false); // swipe derecha → cerrar
+});
 
   
 </script>
