@@ -634,6 +634,47 @@ main{padding:24px}
   font-weight:bold;
   cursor:pointer;
 ">✕</button>
+
+  <!-- MODAL PERFIL OBLIGATORIO -->
+<div id="profileModal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:white;
+    padding:20px;
+    border-radius:14px;
+    width:90%;
+    max-width:360px;
+  ">
+    <h3 style="margin-bottom:10px">👤 Completa tus datos</h3>
+
+    <input
+      id="profileName"
+      placeholder="Nombre completo"
+      style="width:100%;padding:10px;margin:8px 0"
+    >
+
+    <input
+      id="profilePhone"
+      placeholder="Celular (obligatorio)"
+      style="width:100%;padding:10px;margin:8px 0"
+    >
+
+    <button
+      onclick="saveProfile()"
+      style="width:100%;padding:12px;margin-top:10px;background:#0ea5e9;color:white;border:none;border-radius:10px"
+    >
+      Guardar datos
+    </button>
+  </div>
+</div>
+
   
   <!-- MODAL CHECKOUT -->
 <div id="checkoutModal" style="
@@ -645,6 +686,7 @@ main{padding:24px}
   align-items:center;
   justify-content:center;
 ">
+
   <div style="
     background:white;
     padding:22px;
@@ -660,7 +702,8 @@ main{padding:24px}
       Confirmar pedido
     </button>
   </div>
-  <div id="loginModal" style="
+  
+ <div id="loginModal" style="
   display:none;
   position:fixed;
   inset:0;
@@ -669,38 +712,16 @@ main{padding:24px}
   align-items:center;
   justify-content:center;
 ">
-  <div style="background:white;padding:20px;border-radius:14px;width:90%;max-width:360px">
-    <h3>📲 Iniciar sesión</h3>
+  <div style="background:white;padding:20px;border-radius:14px;width:90%;max-width:360px;text-align:center">
+    <h3>🔐 Inicia sesión</h3>
 
-    <input id="phoneInput" placeholder="+51 903263903"
-      style="width:100%;padding:10px;margin:8px 0">
-
-    <div id="recaptcha-container"></div>
-
-    <button onclick="sendCode()" style="width:100%;padding:10px">
-      Enviar código
-    </button>
-
-    <input id="codeInput" placeholder="Código SMS"
-      style="width:100%;padding:10px;margin:8px 0">
-
-    <button onclick="verifyCode()" style="width:100%;padding:10px">
-      Verificar
-    </button>
-  </div>
-
-  <div id="profileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;padding:20px;border-radius:14px;width:90%;max-width:360px">
-    <h3>👤 Completa tu perfil</h3>
-
-    <input id="profileName" placeholder="Nombre completo"
-      style="width:100%;padding:10px;margin:8px 0">
-
-    <button onclick="saveProfile()" style="width:100%;padding:10px">
-      Guardar
+    <button onclick="loginWithGoogle()"
+      style="width:100%;padding:12px;background:#4285F4;color:white;border:none;border-radius:10px">
+      Continuar con Google
     </button>
   </div>
 </div>
+
 
 </div>
 </div>
@@ -713,6 +734,9 @@ main{padding:24px}
 
 </div>
 
+
+
+  
 <!-- ==== Módulo único para Firebase y todo el JS ==== -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -731,8 +755,8 @@ import {
 import {
   getAuth,
   onAuthStateChanged,
-  signInWithPhoneNumber,
-  RecaptchaVerifier
+  signInWithPopup,
+  GoogleAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 
@@ -749,6 +773,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
 let currentUser = null;
 let currentProfile = null;
 
@@ -863,95 +889,6 @@ async function reserveStock(productId, qty) {
   }
 }
 
-async function releaseStock(productId, qty){
-  try{
-    await runTransaction(db, async (tx)=>{
-      const ref = doc(db, "products", productId);
-      const snap = await tx.get(ref);
-      if(!snap.exists()) return;
-
-      const stock = snap.data().stock || 0;
-      tx.update(ref, { stock: stock + qty });
-    });
-  }catch(e){
-    console.error("Error liberando stock", e);
-  }
-}
-
-async function validateCartStock(){
-  for(const item of Object.values(CART)){
-    const ref = doc(db, "products", item.id);
-    const snap = await getDoc(ref);
-
-    if(!snap.exists()) return false;
-
-    const stock = snap.data().stock ?? 0;
-
-    if(stock < 0){
-      return false;
-    }
-  }
-  return true;
-}
-
-async function confirmStock(){
-  for(const item of Object.values(CART)){
-    const ref = doc(db, "products", item.id);
-
-    await runTransaction(db, async (tx)=>{
-      const snap = await tx.get(ref);
-      if(!snap.exists()) return;
-
-      const stock = snap.data().stock ?? 0;
-
-      // 🔒 stock ya fue descontado, solo aseguramos que no se libere
-      tx.update(ref, { stock });
-    });
-  }
-}
-
-async function createOrder(customerName, customerPhone) {
-  if (Object.keys(CART).length === 0) return null;
-
-  const sessionId =
-    localStorage.getItem("sessionId") ||
-    crypto.randomUUID();
-
-  localStorage.setItem("sessionId", sessionId);
-
-  let total = 0;
-  const items = [];
-
-  Object.values(CART).forEach(p => {
-  const price = p.discount ? p.finalPrice : p.price;
-
-  items.push({
-    id: p.id,
-    name: p.name,
-    qty: p.qty,
-    price,
-    cost: p.cost || 0   // 👈 AQUÍ EXACTAMENTE
-  });
-
-  total += price * p.qty;
-});
-
-  const order = {
-  sessionId,
-  customerName,      // 👈 NUEVO
-  customerPhone,     // 👈 NUEVO
-  createdAt: serverTimestamp(),
-  status: "pending",
-  total,
-  items
-};
-
-
-  const ref = await addDoc(collection(db, "orders"), order);
-  return ref.id;
-}
-
-
 // ==== Inicialización ====
 (() => {
   checkoutConfirmed = sessionStorage.getItem("checkoutConfirmed") === "1";
@@ -1001,6 +938,19 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("checkoutModal").style.display = "flex";
 }
 
+  function loginWithGoogle(){
+  signInWithPopup(auth, googleProvider)
+    .then(()=>{
+      document.getElementById("loginModal").style.display = "none";
+    })
+    .catch(err=>{
+      console.error(err);
+      alert("No se pudo iniciar sesión con Google");
+    });
+}
+
+
+  
 // Timer carrito
 function startCartTimer(){
   setInterval(()=>{
@@ -1629,15 +1579,6 @@ async function addToCart(name){
     return;
   }
 
-  let ok = true;
-
-
-  if(!ok){
-    alert("⚠️ Stock insuficiente");
-    reserving = false;
-    return;
-  }
-
   if (!CART[p.id]) {
   CART[p.id] = {
     id: p.id,
@@ -1747,25 +1688,23 @@ async function processCheckout() {
     return;
   }
 
-  // 1️⃣ validar stock
-  for (const item of cart) {
-    const snap = await getDoc(doc(db, "products", item.id));
-    if (!snap.exists() || snap.data().stock < item.qty) {
-      alert("Stock insuficiente");
-      return;
-    }
-  }
-
   // 2️⃣ descontar stock
-  for (const item of cart) {
-    await reserveStock(item.id, item.qty);
+for (const item of cart) {
+  const ref = doc(db, "products", item.id);
+  const snap = await getDoc(ref);
+  if (!snap.exists() || snap.data().stock < item.qty) {
+    alert("Stock insuficiente");
+    return;
   }
+}
+
+
 
   // 3️⃣ crear orden
   await addDoc(collection(db, "orders"), {
     userId: auth.currentUser.uid,
     customerName: currentProfile.name,
-    customerPhone: currentUser.phoneNumber,
+    customerPhone: currentProfile.phone,
     items: cart,
     total: cart.reduce(
       (s,p)=>s+(p.discount?p.finalPrice:p.price)*p.qty,0
@@ -1947,35 +1886,14 @@ window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
 window.processCheckout = processCheckout;
 window.showDetailById = showDetailById;
+window.loginWithGoogle = loginWithGoogle;
+
 
 // Cerrar carrito al tocar el botón ✕
 document.getElementById("cartCloseBtn").addEventListener("click", () => {
   toggleCart(false);
 });
 
-let confirmationResult;
-
-window.openLoginModal = () => {
-  document.getElementById("loginModal").style.display = "flex";
-
-  window.recaptchaVerifier = new RecaptchaVerifier(
-    auth,
-    "recaptcha-container",
-    { size: "invisible" }
-  );
-};
-
-window.sendCode = async () => {
-  const phone = document.getElementById("phoneInput").value;
-  confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
-  alert("Código enviado");
-};
-
-window.verifyCode = async () => {
-  const code = document.getElementById("codeInput").value;
-  await confirmationResult.confirm(code);
-  document.getElementById("loginModal").style.display = "none";
-};
 
 window.openProfileModal = () => {
   document.getElementById("profileModal").style.display = "flex";
@@ -1983,16 +1901,25 @@ window.openProfileModal = () => {
 
 window.saveProfile = async () => {
   const name = document.getElementById("profileName").value.trim();
+  const phone = document.getElementById("profilePhone").value.trim();
+
   if (!name) return alert("Nombre obligatorio");
+  if (!phone) return alert("Celular obligatorio");
 
   await setDoc(doc(db, "users", currentUser.uid), {
     name,
-    phone: currentUser.phoneNumber,
+    phone,
+    email: currentUser.email || null,
     createdAt: serverTimestamp()
   });
 
-  currentProfile = { name, phone: currentUser.phoneNumber };
+  currentProfile = { name, phone };
   document.getElementById("profileModal").style.display = "none";
+};
+
+
+window.openLoginModal = () => {
+  document.getElementById("loginModal").style.display = "flex";
 };
 
   
