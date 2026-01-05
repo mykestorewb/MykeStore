@@ -936,7 +936,7 @@ function startCartTimer(){
 function checkExpiredCart(){
   const now = Date.now();
 
-  Object.entries(CART).forEach(([name, item])=>{
+  Object.entries(CART).forEach(([id, item])=>{
     if(now - item.time > CART_TIMEOUT){
   // solo liberar si NO se confirmó pedido
   releaseStock(item.id, item.qty);
@@ -1566,20 +1566,21 @@ if (p.saleType !== "preventa") {
     return;
   }
 
-  if(!CART[name]) {
-  CART[name] = {
+  if (!CART[p.id]) {
+  CART[p.id] = {
     id: p.id,
     name: p.name,
     price: p.price,
     finalPrice: p.finalPrice,
     discount: p.discount,
-    cost: p.cost ?? 0,   // 👈 CLAVE
+    cost: p.cost ?? 0,
     qty: 0,
     time: Date.now()
   };
 }
-  CART[name].qty += p._qty;
-  CART[name].time = Date.now();
+CART[p.id].qty += p._qty;
+CART[p.id].time = Date.now();
+
 
   saveCart();
   reserving = false;
@@ -1623,7 +1624,7 @@ function renderCart(){
     cartItems.innerHTML += `
       <div class="cart-item">
         ${p.name} x${p.qty}
-        <button onclick="removeFromCart('${p.name}')">❌</button>
+        <button onclick="removeFromCart('${p.id}')">❌</button>
       </div>`;
   });
 
@@ -1632,11 +1633,11 @@ function renderCart(){
   cartTimer.innerText = `(${minLeft}m ${secLeft}s)`;
 }
 
-function removeFromCart(name){
-  const item = CART[name];
+function removeFromCart(id){
+  const item = CART[id];
   if(item){
     releaseStock(item.id, item.qty);
-    delete CART[name];
+    delete CART[id];
     saveCart();
   }
 }
