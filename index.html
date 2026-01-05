@@ -1682,28 +1682,6 @@ function removeFromCart(id) {
   renderCart();
 }
 
-// Incrementar/decrementar cantidad
-function changeQty(name, delta) {
-  const p = Object.values(DATA).flatMap(type => Object.values(type || {}).flat())
-    .find(x => x.name === name);
-  if (!p) return;
-
-  if (!CART[p.id]) return;
-
-  CART[p.id].qty = Math.max(1, Math.min(available(p), CART[p.id].qty + delta));
-  CART[p.id].time = Date.now();
-
-  saveCart();
-  renderCart();
-
-  // Actualizar cantidad en cards y detalle
-  document.querySelectorAll(".q-span").forEach(e => {
-    const cardName = e.closest(".card")?.querySelector("h3")?.innerText;
-    const detailName = e.closest(".detail-info")?.querySelector("h2")?.innerText;
-    if (cardName === name || detailName === name) e.innerText = CART[p.id].qty;
-  });
-}
-
 // Timer para limpiar items expirados cada segundo
 setInterval(() => {
   renderCart();
