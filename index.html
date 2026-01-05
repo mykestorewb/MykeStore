@@ -654,21 +654,57 @@ main{padding:24px}
   ">
     <h3 style="margin-bottom:10px">🧾 Datos del pedido</h3>
 
-    <input id="customerNameInput"
-      placeholder="Nombre completo"
-      style="width:100%;padding:10px;margin:6px 0">
-
-    <input id="customerPhoneInput"
-      placeholder="Celular"
-      style="width:100%;padding:10px;margin:6px 0">
-
     <button
       style="width:100%;padding:12px;margin-top:10px;background:#25d366;color:white;border:none;border-radius:10px"
-      onclick="confirmCheckout()">
+      onclick="processCheckout()">
       Confirmar pedido
     </button>
   </div>
+  <div id="loginModal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="background:white;padding:20px;border-radius:14px;width:90%;max-width:360px">
+    <h3>📲 Iniciar sesión</h3>
+
+    <input id="phoneInput" placeholder="+51 903263903"
+      style="width:100%;padding:10px;margin:8px 0">
+
+    <div id="recaptcha-container"></div>
+
+    <button onclick="sendCode()" style="width:100%;padding:10px">
+      Enviar código
+    </button>
+
+    <input id="codeInput" placeholder="Código SMS"
+      style="width:100%;padding:10px;margin:8px 0">
+
+    <button onclick="verifyCode()" style="width:100%;padding:10px">
+      Verificar
+    </button>
+  </div>
+
+  <div id="profileModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:white;padding:20px;border-radius:14px;width:90%;max-width:360px">
+    <h3>👤 Completa tu perfil</h3>
+
+    <input id="profileName" placeholder="Nombre completo"
+      style="width:100%;padding:10px;margin:8px 0">
+
+    <button onclick="saveProfile()" style="width:100%;padding:10px">
+      Guardar
+    </button>
+  </div>
 </div>
+
+</div>
+</div>
+  
 
   <h2>Carrito <small id="cartTimer"></small></h2>
   <div id="cartItems"></div>
@@ -686,10 +722,19 @@ import {
   onSnapshot,
   doc,
   getDoc,
+  setDoc,          // 👈 FALTA ESTO
   addDoc,
   serverTimestamp,
   runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithPhoneNumber,
+  RecaptchaVerifier
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
 
 // Config Firebase
 const firebaseConfig = {
@@ -703,6 +748,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+let currentUser = null;
+let currentProfile = null;
+
 
 // Variables globales
 let DATA = {}, CART = JSON.parse(localStorage.getItem("cart") || "{}");
@@ -903,6 +952,25 @@ async function createOrder(customerName, customerPhone) {
   startCartTimer();
 })();
 
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    openLoginModal();
+    return;
+  }
+
+  currentUser = user;
+
+  // buscar perfil
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    openProfileModal(); // pedir nombre
+  } else {
+    currentProfile = snap.data();
+  }
+});
+
 
 // ==== FUNCIONES ====
 
@@ -913,28 +981,6 @@ async function createOrder(customerName, customerPhone) {
   }
   document.getElementById("checkoutModal").style.display = "flex";
 }
-
-  function confirmCheckout(){
-  const name = document.getElementById("customerNameInput").value.trim();
-  const phone = document.getElementById("customerPhoneInput").value.trim();
-
-  if(!name){
-    alert("El nombre es obligatorio");
-    return;
-  }
-
-  if(!phone){
-    alert("El celular es obligatorio");
-    return;
-  }
-
-  // cerrar modal
-  document.getElementById("checkoutModal").style.display = "none";
-
-  // llamar al proceso real
-  processCheckout(name, phone);
-}
-
 
 // Timer carrito
 function startCartTimer(){
@@ -951,7 +997,7 @@ function checkExpiredCart(){
     if(now - item.time > CART_TIMEOUT){
   // solo liberar si NO se confirmó pedido
   releaseStock(item.id, item.qty);
-  delete CART[name];
+  delete CART[id];
   }
 });
 
@@ -1672,10 +1718,20 @@ function removeFromCart(id){
 }
   
 
-async function processCheckout(customerName, customerPhone) {
+async function processCheckout() {
   if (checkoutInProgress) return;
 
 checkoutInProgress = true;
+  // 👤 Datos del cliente desde perfil autenticado
+if (!currentProfile) {
+  alert("Debes completar tu perfil");
+  checkoutInProgress = false;
+  return;
+}
+
+const customerName = currentProfile.name;
+const customerPhone = currentProfile.phone;
+
 
 
   const btn = document.getElementById("checkoutBtn");
@@ -1942,13 +1998,54 @@ window.goDetailImg = goDetailImg;
 window.closeCategories = closeCategories;
 window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
-window.confirmCheckout = confirmCheckout;
 window.showDetailById = showDetailById;
 
 // Cerrar carrito al tocar el botón ✕
 document.getElementById("cartCloseBtn").addEventListener("click", () => {
   toggleCart(false);
 });
+
+let confirmationResult;
+
+window.openLoginModal = () => {
+  document.getElementById("loginModal").style.display = "flex";
+
+  window.recaptchaVerifier = new RecaptchaVerifier(
+    auth,
+    "recaptcha-container",
+    { size: "invisible" }
+  );
+};
+
+window.sendCode = async () => {
+  const phone = document.getElementById("phoneInput").value;
+  confirmationResult = await signInWithPhoneNumber(auth, phone, recaptchaVerifier);
+  alert("Código enviado");
+};
+
+window.verifyCode = async () => {
+  const code = document.getElementById("codeInput").value;
+  await confirmationResult.confirm(code);
+  document.getElementById("loginModal").style.display = "none";
+};
+
+window.openProfileModal = () => {
+  document.getElementById("profileModal").style.display = "flex";
+};
+
+window.saveProfile = async () => {
+  const name = document.getElementById("profileName").value.trim();
+  if (!name) return alert("Nombre obligatorio");
+
+  await setDoc(doc(db, "users", currentUser.uid), {
+    name,
+    phone: currentUser.phoneNumber,
+    createdAt: serverTimestamp()
+  });
+
+  currentProfile = { name, phone: currentUser.phoneNumber };
+  document.getElementById("profileModal").style.display = "none";
+};
 
   
 </script>
