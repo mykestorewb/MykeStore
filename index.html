@@ -612,6 +612,12 @@ const BRAND_LOGOS = {
   "kaidohouse": "imagenes/brands/kaidohouse.png"
 };
 
+// Línea 146: normalizar nombres de categorías para buscar logos
+function normalizeCategory(cat) {
+  return cat.replace(/\s+/g,"").toLowerCase();
+}
+
+
 //const RESERVE_TIME=60*60*1000; // 1 hora
 let cartTimeout;
 let checkoutInProgress = false;
@@ -922,10 +928,11 @@ function renderSection(title, products){
   s.innerHTML = `
 <h2 class="section-title">
   ${
-    BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
-      ? `<img src="${BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]}" class="section-brand-logo">`
-      : ""
-  }
+  BRAND_LOGOS[normalizeCategory(title)]
+    ? `<img src="${BRAND_LOGOS[normalizeCategory(title)]}" class="section-brand-logo">`
+    : ""
+}
+
   <span>${title}</span>
 </h2>
 
@@ -1009,12 +1016,11 @@ function renderCategoryGrid(title, products){
   section.innerHTML = `
     <h2 class="section-title">
       ${
-        BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
-          ? `<img src="${
-              BRAND_LOGOS[title.replace(/\s+/g,"").toLowerCase()]
-            }" class="section-brand-logo">`
-          : ""
-      }
+  BRAND_LOGOS[normalizeCategory(title)]
+    ? `<img src="${BRAND_LOGOS[normalizeCategory(title)]}" class="section-brand-logo">`
+    : ""
+}
+
       <span>${title}</span>
     </h2>
 
