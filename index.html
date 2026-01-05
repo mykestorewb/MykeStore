@@ -1625,48 +1625,46 @@ function goHome(){
 }
 
 
-function saveCart(){
-  localStorage.setItem("cart",JSON.stringify(CART));
-  renderCart();
+// Guardar carrito en localStorage
+function saveCart() {
+  localStorage.setItem("cart", JSON.stringify(CART));
 }
 
+// Render del carrito
 function renderCart() {
   const now = Date.now();
 
-  // Revisar expiración de items
+  // Limpiar items expirados
   Object.entries(CART).forEach(([id, item]) => {
     if (!checkoutConfirmed && now - item.time > CART_TIMEOUT) {
       delete CART[id];
     }
   });
 
-  // Guardar en localStorage
-  localStorage.setItem("cart", JSON.stringify(CART));
+  saveCart();
 
-  // Limpiar contenedor del carrito
   cartItems.innerHTML = "";
-
   let total = 0;
 
   Object.values(CART).forEach(item => {
-    const linePrice = (item.discount ? item.finalPrice : item.price) * item._qty;
+    const price = item.discount ? item.finalPrice : item.price;
+    const linePrice = price * item.qty;
     total += linePrice;
 
     const div = document.createElement("div");
     div.className = "cart-item";
     div.innerHTML = `
-      <span>${item.name} x ${item._qty}</span>
+      <span>${item.name} x ${item.qty}</span>
       <small>S/ ${linePrice.toFixed(2)}</small>
       <button onclick="removeFromCart('${item.id}')">✕</button>
     `;
     cartItems.appendChild(div);
   });
 
-  // Actualizar total y contador
   cartTotal.innerText = total.toFixed(2);
   cartCount.innerText = Object.keys(CART).length;
 
-  // Actualizar temporizador si quieres mostrarlo
+  // Timer reserva
   if (Object.keys(CART).length) {
     const earliest = Math.min(...Object.values(CART).map(i => i.time));
     const remaining = Math.max(0, CART_TIMEOUT - (now - earliest));
@@ -1678,101 +1676,73 @@ function renderCart() {
   }
 }
 
-// ============================
-// Cerrar carrito (botón y swipe)
-// ============================
-const cartCloseBtn = document.getElementById("cartCloseBtn");
-if(cartCloseBtn) {
-  cartCloseBtn.addEventListener("click", () => toggleCart(false));
+// Añadir producto al carrito
+async function addToCart(name) {
+  if (reserving) return;
+  reserving = true;
+
+  const p = Object.values(DATA).flatMap(type => Object.values(type || {}).flat())
+    .find(x => x.name === name);
+  if (!p) { reserving = false; return; }
+
+  // Inicializar item
+  if (!CART[p.id]) {
+    CART[p.id] = {
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      finalPrice: p.finalPrice ?? p.price,
+      discount: p.discount ?? 0,
+      qty: 0,
+      time: Date.now()
+    };
+  }
+
+  // Actualizar cantidad
+  CART[p.id].qty += p._qty;
+  CART[p.id].time = Date.now();
+
+  saveCart();
+  renderCart();
+
+  reserving = false;
 }
 
-let startXCart = 0;
-const cartEl = document.getElementById("cart");
-if(cartEl){
-  cartEl.addEventListener("touchstart", e => startXCart = e.touches[0].clientX, {passive:true});
-  cartEl.addEventListener("touchend", e => {
-    const endX = e.changedTouches[0].clientX;
-    if(endX - startXCart > 80) toggleCart(false);
+// Quitar producto del carrito
+function removeFromCart(id) {
+  delete CART[id];
+  saveCart();
+  renderCart();
+}
+
+// Incrementar/decrementar cantidad
+function changeQty(name, delta) {
+  const p = Object.values(DATA).flatMap(type => Object.values(type || {}).flat())
+    .find(x => x.name === name);
+  if (!p) return;
+
+  if (!CART[p.id]) return;
+
+  CART[p.id].qty = Math.max(1, Math.min(available(p), CART[p.id].qty + delta));
+  CART[p.id].time = Date.now();
+
+  saveCart();
+  renderCart();
+
+  // Actualizar cantidad en cards y detalle
+  document.querySelectorAll(".q-span").forEach(e => {
+    const cardName = e.closest(".card")?.querySelector("h3")?.innerText;
+    const detailName = e.closest(".detail-info")?.querySelector("h2")?.innerText;
+    if (cardName === name || detailName === name) e.innerText = CART[p.id].qty;
   });
 }
 
-function removeFromCart(id){
-  delete CART[id];
-  saveCart();
-}
-  
-
-async function processCheckout() {
-  if (checkoutInProgress) return;
-  checkoutInProgress = true;
-
-  try {
-    if (!currentUser) throw "Usuario no autenticado";
-    if (!currentProfile) throw "Debes completar tus datos antes de comprar";
-
-    const cartItemsArray = Object.values(CART);
-    if (!cartItemsArray.length) throw "El carrito está vacío";
-
-    // 🔹 Sanitize cart
-    const sanitizedCart = cartItemsArray.map(item => ({
-      id: item.id,
-      name: item.name || "",
-      price: Number(item.price) || 0,
-      finalPrice: Number(item.finalPrice) || Number(item.price) || 0,
-      discount: Number(item.discount) || 0,
-      qty: Number(item.qty) || 1
-    }));
-
-    const total = sanitizedCart.reduce(
-      (sum, item) => sum + item.qty * (item.discount ? item.finalPrice : item.price),
-      0
-    );
-
-    // 🔹 Crear la orden en Firestore
-    await addDoc(collection(db, "orders"), {
-      userId: currentUser.uid,
-      customerName: currentProfile.name,
-      customerPhone: currentProfile.phone,
-      items: sanitizedCart,
-      total,
-      status: "pending",
-      createdAt: serverTimestamp()
-    });
-
-    alert("✅ Pedido creado con éxito!");
-    CART = {};
-    saveCart();
-    renderCart();
-    document.getElementById("checkoutModal").style.display = "none";
-
-  } catch (e) {
-    console.error("Error al crear la orden:", e);
-    alert("❌ No se pudo crear la orden: " + e);
-  } finally {
-    checkoutInProgress = false;
-  }
-}
-
-
-
-function clearAfterCheckout(){
-  CART = {};
-  localStorage.removeItem("cart");
-
-  checkoutInProgress = false;
-
-  const btn = document.getElementById("checkoutBtn");
-  if (btn) {
-    btn.disabled = false;
-    btn.innerText = "Finalizar por WhatsApp";
-  }
-
+// Timer para limpiar items expirados cada segundo
+setInterval(() => {
   renderCart();
-  renderAll();
-}
+}, 1000);
 
-  
-// Mostrar/ocultar carrito
+// Abrir/ cerrar carrito
 function toggleCart(show) {
   const overlay = document.getElementById("cart-overlay");
   const cart = document.getElementById("cart");
@@ -1785,7 +1755,7 @@ function toggleCart(show) {
     cart.classList.remove("active");
   }
 
-  renderCart(); // ✅ importante
+  renderCart(); // 🔹 clave para que siempre se vea actualizado
 }
 
 
