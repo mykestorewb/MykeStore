@@ -987,7 +987,45 @@ function checkExpiredCart(){
 
   saveCart();
 }
-  
+
+function processCheckout() {
+  if (checkoutInProgress) return; // evitar doble click
+  checkoutInProgress = true;
+
+  if (!currentUser || currentUser.isAnonymous) {
+    alert("Debes iniciar sesión antes de finalizar el pedido.");
+    document.getElementById("loginModal").style.display = "flex";
+    checkoutInProgress = false;
+    return;
+  }
+
+  // Aquí puedes generar el mensaje de WhatsApp
+  let msg = "¡Hola! Quiero hacer mi pedido:\n\n";
+
+  Object.values(CART).forEach(item => {
+    msg += `- ${item.name} x${item.qty}\n`;
+  });
+
+  const total = Object.values(CART).reduce((acc, item) => {
+    const price = item.discount ? item.finalPrice : item.price;
+    return acc + price * item.qty;
+  }, 0);
+
+  msg += `\nTotal: S/ ${total.toFixed(2)}`;
+
+  const phone = "51903263903"; // tu WhatsApp
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  window.open(url, "_blank");
+
+  // Marcar pedido como confirmado
+  sessionStorage.setItem("checkoutConfirmed", "1");
+  checkoutConfirmed = true;
+  checkoutInProgress = false;
+
+  // Cerrar modal
+  document.getElementById("checkoutModal").style.display = "none";
+}
+
 
 // Stock disponible
 function available(p){
