@@ -1032,25 +1032,35 @@ window.addEventListener("resize", () => {
     const c = document.createElement("div");
     c.className = "card" + (a <= 0 ? " disabled" : "");
     c.innerHTML = `
-      ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
-      ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
-      <img src="${p.image}" onclick="showDetailById('${p.id}')">
-      <h3 onclick="showDetailById('${p.id}')">
-      <div>
-        ${p.discount ? `<span class="old-price">S/ ${p.price}</span>` : ""}
-        <span class="price">S/ ${p.discount?p.finalPrice:p.price}</span>
-      </div>
-      <div class="qty">
-        <button onclick="changeQty('${p.name}',-1)">-</button>
-        <span class="q-span">${p._qty}</span>
-        <button onclick="changeQty('${p.name}',1)">+</button>
-      </div>
-      <button class="add-btn" onclick="addToCart('${p.name}')">Añadir al carrito</button>
-      <button class="buy-btn" onclick="buyNow('${p.name}')">
-        <img src="imagenes/whatsapp-logo.png" style="width:16px;">
-        Comprar ahora
-      </button>
-    `;
+  ${p.discount ? `<div class="discount-badge">-${p.discount}%</div>` : ""}
+  ${a === 1 ? `<div class="last-unit">Última unidad</div>` : a <= 0 ? `<div class="out-stock">Agotado</div>` : ""}
+
+  <img src="${p.image}" onclick="showDetailById('${p.id}')">
+
+  <!-- ✅ NOMBRE DEL PRODUCTO -->
+  <h3 onclick="showDetailById('${p.id}')">
+    ${p.name}
+  </h3>
+
+  <!-- PRECIO -->
+  <div>
+    ${p.discount ? `<span class="old-price">S/ ${p.price}</span>` : ""}
+    <span class="price">S/ ${p.discount ? p.finalPrice : p.price}</span>
+  </div>
+
+  <div class="qty">
+    <button onclick="changeQty('${p.name}',-1)">-</button>
+    <span class="q-span">${p._qty}</span>
+    <button onclick="changeQty('${p.name}',1)">+</button>
+  </div>
+
+  <button class="add-btn" onclick="addToCart('${p.name}')">Añadir al carrito</button>
+  <button class="buy-btn" onclick="buyNow('${p.name}')">
+    <img src="imagenes/whatsapp-logo.png" style="width:16px;">
+    Comprar ahora
+  </button>
+`;
+
     grid.appendChild(c);
     setTimeout(()=>c.classList.add("show"),50);
   });
