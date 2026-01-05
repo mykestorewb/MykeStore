@@ -236,6 +236,7 @@ img.product-img{
         <th>Costo Total Compra</th>
         <th>Activo</th>
         <th>Guardar</th>
+        <th>Estado</th>
         <th>Eliminar</th>
       </tr>
     </thead>
@@ -332,6 +333,13 @@ onSnapshot(collection(db,"orders"), snapshot=>{
   <td>${o.customerPhone || "-"}</td>
   <td>S/ ${o.total || 0}</td>
   <td>
+  <select onchange="updateOrderStatus('${docSnap.id}', this.value)">
+    <option value="pending" ${o.status === "pending" ? "selected" : ""}>🕒 Pendiente</option>
+    <option value="confirmed" ${o.status === "confirmed" ? "selected" : ""}>✅ Confirmado</option>
+    <option value="cancelled" ${o.status === "cancelled" ? "selected" : ""}>❌ Cancelado</option>
+  </select>
+</td>
+  <td>
     <button onclick="showDetailById('${docSnap.id}')">
       Ver
     </button>
@@ -378,6 +386,17 @@ window.showDetailById = (id)=>{
   showDetail(order);
 };
 
+window.updateOrderStatus = async (id, status)=>{
+  if(!confirm(`¿Cambiar estado a "${status}"?`)) return;
+
+  await updateDoc(doc(db,"orders",id),{
+    status
+  });
+
+  alert("✅ Estado actualizado");
+};
+
+  
 
 window.deleteOrder = async (id)=>{
   if(!confirm("⚠️ ¿Eliminar este pedido definitivamente?")) return;
