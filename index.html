@@ -854,7 +854,10 @@ import {
   setDoc,          // 👈 FALTA ESTO
   addDoc,
   serverTimestamp,
-  runTransaction
+  runTransaction,
+  query,          // 👈 AÑADIR
+  where,         // 👈 AÑADIR
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
@@ -2005,17 +2008,37 @@ document.addEventListener("click", e => {
 });
 
 function openOrders() {
+
+  if (!currentUser || currentUser.isAnonymous) {
+    alert("Debes iniciar sesión para ver tus pedidos");
+    return;
+  }
+
   const list = document.getElementById("ordersList");
   list.innerHTML = "";
 
-  if (ordersUnsub) ordersUnsub(); // cerrar listener previo
+  // cortar listener anterior
+  if (ordersUnsub) ordersUnsub();
 
-  ordersUnsub = onSnapshot(collection(db, "orders"), snapshot => {
+  // 🔐 QUERY SEGURO: SOLO pedidos del usuario
+  const q = query(
+  collection(db, "orders"),
+  where("userId", "==", currentUser.uid),
+  orderBy("createdAt", "desc")
+);
+
+
+  ordersUnsub = onSnapshot(q, snapshot => {
+
     list.innerHTML = "";
+
+    if (snapshot.empty) {
+      list.innerHTML = "<p>No tienes pedidos aún.</p>";
+      return;
+    }
 
     snapshot.forEach(docu => {
       const o = docu.data();
-      if (o.userId !== currentUser.uid) return;
 
       const div = document.createElement("div");
       div.style.borderBottom = "1px solid #e5e7eb";
@@ -2041,16 +2064,9 @@ function openOrders() {
   document.getElementById("ordersModal").style.display = "flex";
 }
 
-
-
-
 function closeOrders() {
+  if (ordersUnsub) ordersUnsub();
   document.getElementById("ordersModal").style.display = "none";
-  if (ordersUnsub) {
-  ordersUnsub();
-  ordersUnsub = null;
-}
-
 }
 
 document.addEventListener("click", e => {
