@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Detalle del pedido</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  font-family:Montserrat,sans-serif;
+  background:#e5e7eb;
+  padding:20px;
+}
+.item{
+  background:white;
+  padding:14px;
+  border-radius:12px;
+  margin-bottom:10px;
+}
+</style>
+</head>
+
+<body>
+
+<button onclick="history.back()">⬅ Volver</button>
+<h1>Detalle del pedido</h1>
+
+<div id="detail"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import {
+  getAuth,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB82EorZSZo5exTSGETod4HS8YuIg1WaNk",
+  authDomain: "myke-store.firebaseapp.com",
+  projectId: "myke-store"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+const params = new URLSearchParams(location.search);
+const orderId = params.get("id");
+const cont = document.getElementById("detail");
+
+onAuthStateChanged(auth, async user => {
+  if (!user) return;
+
+  const ref = doc(db, "orders", orderId);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    cont.innerHTML = "Pedido no encontrado";
+    return;
+  }
+
+  const o = snap.data();
+
+  o.items.forEach(i => {
+    cont.innerHTML += `
+      <div class="item">
+        ${i.name}<br>
+        ${i.qty} x S/ ${i.discount ? i.finalPrice : i.price}
+      </div>
+    `;
+  });
+
+  cont.innerHTML += `<h3>Total: S/ ${o.total}</h3>`;
+});
+</script>
+
+</body>
+</html>
