@@ -676,7 +676,7 @@ main{padding:24px}
 </button>
 
   <div id="userDropdown" class="user-dropdown">
-    <div onclick="goToOrders()">Mis pedidos</div>
+    <div onclick="showOrdersView()">Mis pedidos</div>
     <div onclick="logout()">Cerrar sesión</div>
   </div>
 </div>
@@ -692,6 +692,7 @@ main{padding:24px}
 <main>
   <div id="catalog"></div>
   <div id="detail"></div>
+  <div id="ordersView" style="display:none"></div>
 </main>
 
 
@@ -1310,15 +1311,6 @@ ${
 
   catalog.appendChild(s);
 }
-
-function goToOrders() {
-  if (!currentUser || currentUser.isAnonymous) {
-    alert("Debes iniciar sesión para ver tus pedidos");
-    return;
-  }
-  window.location.href = "mis-pedidos.html";
-}
-
   
 function renderCategoryGrid(title, products){
   catalog.innerHTML = "";
@@ -1735,9 +1727,16 @@ let reserving = false;
 
 function buyNow(name){addToCart(name);toggleCart(true)}
 function goHome(){
-  stopDetailSlider(); // 👈 importante
+  stopDetailSlider();
   checkoutInProgress = false;
   sessionStorage.removeItem("checkoutConfirmed");
+
+  if (ordersUnsub) {
+    ordersUnsub();
+    ordersUnsub = null;
+  }
+
+  document.getElementById("ordersView").style.display = "none";
   renderAll();
 }
 
@@ -1831,11 +1830,6 @@ function removeFromCart(id) {
   saveCart();
   renderCart();
 }
-
-// Timer para limpiar items expirados cada segundo
-setInterval(() => {
-  renderCart();
-}, 1000);
 
 // Abrir/ cerrar carrito
 function toggleCart(show) {
@@ -1986,26 +1980,18 @@ document.addEventListener("click", e => {
 
 });
 
-function openOrders() {
-
-  if (!currentUser || currentUser.isAnonymous) {
-    alert("Debes iniciar sesión para ver tus pedidos");
-    return;
-  }
+function loadOrders() {
 
   const list = document.getElementById("ordersList");
-  list.innerHTML = "";
+  list.innerHTML = "Cargando pedidos...";
 
-  // cortar listener anterior
   if (ordersUnsub) ordersUnsub();
 
-  // 🔐 QUERY SEGURO: SOLO pedidos del usuario
   const q = query(
-  collection(db, "orders"),
-  where("userId", "==", currentUser.uid),
-  orderBy("createdAt", "desc")
-);
-
+    collection(db, "orders"),
+    where("userId", "==", currentUser.uid),
+    orderBy("createdAt", "desc")
+  );
 
   ordersUnsub = onSnapshot(q, snapshot => {
 
@@ -2020,11 +2006,15 @@ function openOrders() {
       const o = docu.data();
 
       const div = document.createElement("div");
-      div.style.borderBottom = "1px solid #e5e7eb";
-      div.style.padding = "10px 0";
+      div.style.background = "#ffffff";
+      div.style.borderRadius = "14px";
+      div.style.padding = "16px";
+      div.style.marginBottom = "12px";
+      div.style.boxShadow = "0 6px 16px rgba(0,0,0,.08)";
+      div.style.cursor = "pointer";
 
       div.innerHTML = `
-        <strong>Total: S/ ${o.total}</strong><br>
+        <strong>Total: S/ ${o.total.toFixed(2)}</strong><br>
         <small>Estado: ${o.status}</small><br>
         <small>
           Fecha:
@@ -2039,14 +2029,52 @@ function openOrders() {
       list.appendChild(div);
     });
   });
-
-  document.getElementById("ordersModal").style.display = "flex";
 }
 
-function closeOrders() {
-  if (ordersUnsub) ordersUnsub();
-  document.getElementById("ordersModal").style.display = "none";
+
+function showOrdersView() {
+
+  if (!currentUser || currentUser.isAnonymous) {
+    alert("Debes iniciar sesión para ver tus pedidos");
+    return;
+  }
+
+  // Ocultar otras vistas
+  catalog.style.display = "none";
+  detail.style.display = "none";
+
+  const ordersView = document.getElementById("ordersView");
+  ordersView.style.display = "block";
+
+  ordersView.innerHTML = `
+    <div class="section">
+      <h2 class="section-title">
+        📦 Mis pedidos
+      </h2>
+
+      <button
+        style="
+          margin-bottom:16px;
+          padding:10px 16px;
+          border:none;
+          border-radius:10px;
+          background:#334155;
+          color:white;
+          cursor:pointer;
+        "
+        onclick="goHome()"
+      >
+        ⬅ Volver a la tienda
+      </button>
+
+      <div id="ordersList"></div>
+    </div>
+  `;
+
+  loadOrders();
 }
+  
+  
 
 document.addEventListener("click", e => {
   const menu = document.getElementById("userMenu");
@@ -2078,11 +2106,10 @@ window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
 window.processCheckout = processCheckout;
 window.loginWithGoogle = loginWithGoogle;
-window.openOrders = openOrders;
-window.closeOrders = closeOrders;
 window.logout = logout;
 window.toggleUserMenu = toggleUserMenu;
 window.goToOrders = goToOrders;
+window.showOrdersView = showOrdersView;
 
 
 // Cerrar carrito al tocar el botón ✕
