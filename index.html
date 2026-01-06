@@ -723,19 +723,33 @@ main{padding:24px}
 </div>
 
 
-</div>
-</div>
-  
+<div id="cart-overlay" onclick="toggleCart(false)"></div>
+
+<div id="cart">
+  <button id="cartCloseBtn" style="
+    position:absolute;
+    top:12px;
+    right:12px;
+    background:none;
+    border:none;
+    font-size:24px;
+    font-weight:bold;
+    cursor:pointer;
+  ">✕</button>
 
   <h2>Carrito <small id="cartTimer"></small></h2>
+
   <div id="cartItems"></div>
+
   <strong>Total: S/ <span id="cartTotal">0</span></strong>
-  <button class="buy-btn" id="checkoutBtn" onclick="openCheckoutModal()">Finalizar por WhatsApp</button>
 
+  <button
+    class="buy-btn"
+    id="checkoutBtn"
+    onclick="openCheckoutModal()">
+    Finalizar por WhatsApp
+  </button>
 </div>
-
-
-
   
 <!-- ==== Módulo único para Firebase y todo el JS ==== -->
 <script type="module">
