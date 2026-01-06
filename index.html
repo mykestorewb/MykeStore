@@ -885,6 +885,8 @@ const googleProvider = new GoogleAuthProvider();
 let currentUser = null;
 let currentProfile = null;
 let ordersUnsub = null;
+let isLoggingOut = false;
+
 
 
 // Variables globales
@@ -1006,12 +1008,33 @@ async function reserveStock(productId, qty) {
 
 onAuthStateChanged(auth, async (user) => {
 
-  if (!user) {
-    await signInAnonymously(auth).catch(() => {});
-    return;
+if (!user) {
+
+  if (isLoggingOut) {
+    isLoggingOut = false;
+
+    currentUser = null;
+    currentProfile = null;
+
+    document.getElementById("loginBtn").style.display = "inline-block";
+    document.getElementById("userMenu").style.display = "none";
+
+    return; // 🚨 NO login anónimo
   }
 
+  // login anónimo solo si NO fue logout
+  await signInAnonymously(auth).catch(() => {});
+  return;
+}
+
+
   currentUser = user;
+  if (!user.isAnonymous) {
+  const ref = doc(db, "profiles", user.uid);
+  const snap = await getDoc(ref);
+  currentProfile = snap.exists() ? snap.data() : null;
+}
+
 
   const loginBtn = document.getElementById("loginBtn");
   const userMenu = document.getElementById("userMenu");
@@ -1029,9 +1052,11 @@ onAuthStateChanged(auth, async (user) => {
     user.displayName ||
     "Cliente";
 
+if (userBtn) {
   userBtn.textContent = `Hola, ${name}`;
   userBtn.onclick = toggleUserMenu;
 }
+
 
 });
 
@@ -1930,8 +1955,10 @@ function toggleUserMenu() {
 }
 
 function logout() {
-  signOut(auth).then(() => location.reload());
+  isLoggingOut = true;
+  signOut(auth);
 }
+
    
 
 function toggleCategories(){
@@ -2028,8 +2055,6 @@ document.addEventListener("click", e => {
 });
 
 
-
-
 // ==== EXPONER FUNCIONES PARA HTML (FIX MODULE) ====
 window.renderAll = renderAll;
 window.showDetail = showDetail;
@@ -2050,6 +2075,9 @@ window.processCheckout = processCheckout;
 window.loginWithGoogle = loginWithGoogle;
 window.openOrders = openOrders;
 window.closeOrders = closeOrders;
+window.logout = logout;
+window.toggleUserMenu = toggleUserMenu;
+
 
 
 
