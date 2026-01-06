@@ -672,8 +672,8 @@ main{padding:24px}
 
 <div id="userMenu" class="user-menu" style="display:none">
   <button id="userBtn" class="login-btn">
-    Hola
-  </button>
+  Hola <span style="font-size:12px">▼</span>
+</button>
 
   <div id="userDropdown" class="user-dropdown">
     <div onclick="openOrders()">Mis pedidos</div>
@@ -1018,26 +1018,21 @@ onAuthStateChanged(auth, async (user) => {
   const userBtn = document.getElementById("userBtn");
 
   if (user.isAnonymous) {
-    loginBtn.style.display = "inline-block";
-    userMenu.style.display = "none";
-  } else {
-    loginBtn.style.display = "none";
-    userMenu.style.display = "block";
+  loginBtn.style.display = "inline-block";
+  userMenu.style.display = "none";
+} else {
+  loginBtn.style.display = "none";
+  userMenu.style.display = "block";
 
-    const profileRef = doc(db, "profiles", user.uid);
-    const snap = await getDoc(profileRef);
-    if (snap.exists()) currentProfile = snap.data();
+  const name =
+    currentProfile?.name ||
+    user.displayName ||
+    "Cliente";
 
-    const name =
-      currentProfile?.name ||
-      user.displayName ||
-      "Cliente";
+  userBtn.textContent = `Hola, ${name}`;
+  userBtn.onclick = toggleUserMenu;
+}
 
-    userBtn.textContent = `Hola, ${name}`;
-    userBtn.onclick = toggleUserMenu;
-
-    document.getElementById("loginModal").style.display = "none";
-  }
 });
 
 
@@ -2033,6 +2028,7 @@ document.addEventListener("click", e => {
 });
 
 
+
 // ==== EXPONER FUNCIONES PARA HTML (FIX MODULE) ====
 window.renderAll = renderAll;
 window.showDetail = showDetail;
@@ -2052,9 +2048,6 @@ window.processCheckout = processCheckout;
 window.loginWithGoogle = loginWithGoogle;
 window.openOrders = openOrders;
 window.closeOrders = closeOrders;
-window.openLoginModal = () => {
-  document.getElementById("loginModal").style.display = "flex"};
-window.processCheckout = processCheckout;
 
 
 // Cerrar carrito al tocar el botón ✕
