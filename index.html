@@ -2003,31 +2003,35 @@ function loadOrders() {
     }
 
     snapshot.forEach(docu => {
-      const o = docu.data();
+  const o = docu.data();
+  const orderId = docu.id;
 
-      const div = document.createElement("div");
-      div.style.background = "#ffffff";
-      div.style.borderRadius = "14px";
-      div.style.padding = "16px";
-      div.style.marginBottom = "12px";
-      div.style.boxShadow = "0 6px 16px rgba(0,0,0,.08)";
-      div.style.cursor = "pointer";
+  const div = document.createElement("div");
+  div.style.background = "#ffffff";
+  div.style.borderRadius = "14px";
+  div.style.padding = "16px";
+  div.style.marginBottom = "12px";
+  div.style.boxShadow = "0 6px 16px rgba(0,0,0,.08)";
+  div.style.cursor = "pointer";
 
-      div.innerHTML = `
-        <strong>Total: S/ ${o.total.toFixed(2)}</strong><br>
-        <small>Estado: ${o.status}</small><br>
-        <small>
-          Fecha:
-          ${
-            o.createdAt?.toDate
-              ? o.createdAt.toDate().toLocaleString()
-              : "—"
-          }
-        </small>
-      `;
+  div.innerHTML = `
+    <strong>Total: S/ ${o.total.toFixed(2)}</strong><br>
+    <small>Estado: ${o.status}</small><br>
+    <small>
+      Fecha:
+      ${
+        o.createdAt?.toDate
+          ? o.createdAt.toDate().toLocaleString()
+          : "—"
+      }
+    </small>
+  `;
 
-      list.appendChild(div);
-    });
+  div.onclick = () => showOrderDetail(orderId, o);
+
+  list.appendChild(div);
+});
+
   });
 }
 
@@ -2074,7 +2078,76 @@ function showOrdersView() {
   loadOrders();
 }
   
-  
+
+function showOrderDetail(orderId, order) {
+
+  const ordersView = document.getElementById("ordersView");
+
+  ordersView.innerHTML = `
+    <div class="section">
+      <h2 class="section-title">🧾 Detalle del pedido</h2>
+
+      <button
+        style="
+          margin-bottom:16px;
+          padding:10px 16px;
+          border:none;
+          border-radius:10px;
+          background:#334155;
+          color:white;
+          cursor:pointer;
+        "
+        onclick="showOrdersView()"
+      >
+        ⬅ Volver a mis pedidos
+      </button>
+
+      <div style="
+        background:white;
+        padding:20px;
+        border-radius:16px;
+        box-shadow:0 8px 20px rgba(0,0,0,.08)
+      ">
+        <p><strong>Pedido ID:</strong> ${orderId}</p>
+        <p><strong>Estado:</strong> ${order.status}</p>
+        <p><strong>Fecha:</strong> ${
+          order.createdAt?.toDate
+            ? order.createdAt.toDate().toLocaleString()
+            : "—"
+        }</p>
+
+        <hr style="margin:12px 0">
+
+        <div id="orderItems"></div>
+
+        <hr style="margin:12px 0">
+
+        <h3>Total: S/ ${order.total.toFixed(2)}</h3>
+      </div>
+    </div>
+  `;
+
+  const itemsDiv = document.getElementById("orderItems");
+
+  order.items.forEach(item => {
+    const price = item.discount ? item.finalPrice : item.price;
+    const subtotal = price * item.qty;
+
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.justifyContent = "space-between";
+    row.style.marginBottom = "8px";
+
+    row.innerHTML = `
+      <span>${item.name} x ${item.qty}</span>
+      <strong>S/ ${subtotal.toFixed(2)}</strong>
+    `;
+
+    itemsDiv.appendChild(row);
+  });
+}
+
+
 
 document.addEventListener("click", e => {
   const menu = document.getElementById("userMenu");
@@ -2109,6 +2182,7 @@ window.loginWithGoogle = loginWithGoogle;
 window.logout = logout;
 window.toggleUserMenu = toggleUserMenu;
 window.showOrdersView = showOrdersView;
+window.showOrderDetail = showOrderDetail;
 
 
 // Cerrar carrito al tocar el botón ✕
