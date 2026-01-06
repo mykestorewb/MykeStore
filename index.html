@@ -973,6 +973,25 @@ async function reserveStock(productId, qty) {
   }
 }
 
+
+async function getNextOrderNumber() {
+  const ref = doc(db, "counters", "orders");
+
+  return await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+
+    let next = 1;
+    if (snap.exists()) {
+      next = (snap.data().value || 0) + 1;
+    }
+
+    tx.set(ref, { value: next }, { merge: true });
+    return `MK-${next}`;
+  });
+}
+
+  
+
 // ==== Inicialización ====
 (() => {
   checkoutConfirmed = sessionStorage.getItem("checkoutConfirmed") === "1";
@@ -1073,6 +1092,30 @@ function loginWithGoogle() {
     });
 }
 
+async function saveProfile() {
+  const name = document.getElementById("profileName").value.trim();
+  const phone = document.getElementById("profilePhone").value.trim();
+
+  if (!name || !phone) {
+    alert("Completa nombre y celular");
+    return;
+  }
+
+  await setDoc(
+    doc(db, "profiles", currentUser.uid),
+    {
+      name,
+      phone,
+      email: currentUser.email || "",
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  currentProfile = { name, phone };
+
+  document.getElementById("profileModal").style.display = "none";
+}
 
 
   
@@ -1099,6 +1142,13 @@ function checkExpiredCart(){
 
   
 async function processCheckout() {
+
+  if (!currentProfile?.name || !currentProfile?.phone) {
+  document.getElementById("profileModal").style.display = "flex";
+  checkoutInProgress = false;
+  return;
+}
+  
   if (checkoutInProgress) return;
   checkoutInProgress = true;
 
@@ -1116,13 +1166,21 @@ async function processCheckout() {
     total += price * item.qty;
   });
 
-  await addDoc(collection(db, "orders"), {
-    userId: currentUser.uid,
-    items: Object.values(CART),
-    total,
-    status: "confirmado",
-    createdAt: serverTimestamp()
-  });
+  const shortId = await getNextOrderNumber();
+
+await addDoc(collection(db, "orders"), {
+  shortId,
+  userId: currentUser.uid,
+  customer: {
+    name: currentProfile.name,
+    phone: currentProfile.phone
+  },
+  items: Object.values(CART),
+  total,
+  status: "confirmado",
+  createdAt: serverTimestamp()
+});
+
 
   CART = {};
   saveCart();
@@ -2015,7 +2073,7 @@ function loadOrders() {
   div.style.cursor = "pointer";
 
   div.innerHTML = `
-    <strong>Total: S/ ${o.total.toFixed(2)}</strong><br>
+    <strong>${o.shortId || "—"} · Total: S/ ${o.total.toFixed(2)}</strong><br>
     <small>Estado: ${o.status}</small><br>
     <small>
       Fecha:
@@ -2083,50 +2141,57 @@ function showOrderDetail(orderId, order) {
 
   const ordersView = document.getElementById("ordersView");
 
+  const itemsHtml = order.items.map(i => `
+    <div style="display:flex;justify-content:space-between;margin:6px 0">
+      <span>${i.name} x ${i.qty}</span>
+      <strong>S/ ${(i.qty * (i.finalPrice || i.price)).toFixed(2)}</strong>
+    </div>
+  `).join("");
+
   ordersView.innerHTML = `
     <div class="section">
-      <h2 class="section-title">🧾 Detalle del pedido</h2>
+      <h2 class="section-title">🧾 Pedido ${order.shortId}</h2>
 
-      <button
-        style="
-          margin-bottom:16px;
-          padding:10px 16px;
-          border:none;
-          border-radius:10px;
-          background:#334155;
-          color:white;
-          cursor:pointer;
-        "
-        onclick="showOrdersView()"
-      >
-        ⬅ Volver a mis pedidos
+      <button onclick="showOrdersView()" style="margin-bottom:16px">
+        ⬅ Volver
       </button>
 
-      <div style="
-        background:white;
-        padding:20px;
-        border-radius:16px;
-        box-shadow:0 8px 20px rgba(0,0,0,.08)
-      ">
-        <p><strong>Pedido ID:</strong> ${orderId}</p>
-        <p><strong>Estado:</strong> ${order.status}</p>
-        <p><strong>Fecha:</strong> ${
-          order.createdAt?.toDate
-            ? order.createdAt.toDate().toLocaleString()
-            : "—"
-        }</p>
-
-        <hr style="margin:12px 0">
-
-        <div id="orderItems"></div>
-
-        <hr style="margin:12px 0">
-
+      <div style="background:white;padding:20px;border-radius:16px">
+        <p><strong>Cliente:</strong> ${order.customer?.name}</p>
+        <p><strong>Celular:</strong> ${order.customer?.phone}</p>
+        <hr>
+        ${itemsHtml}
+        <hr>
         <h3>Total: S/ ${order.total.toFixed(2)}</h3>
+
+        <button
+          style="margin-top:12px;background:#25d366;color:white;padding:12px;border:none;border-radius:10px;width:100%"
+          onclick="sendOrderWhatsApp(${JSON.stringify(order).replace(/"/g,"&quot;")})"
+        >
+          📲 Reenviar por WhatsApp
+        </button>
       </div>
     </div>
   `;
+}
 
+
+function sendOrderWhatsApp(order) {
+  let msg = `🧾 Pedido ${order.shortId}%0A`;
+  msg += `👤 ${order.customer.name}%0A`;
+  msg += `📱 ${order.customer.phone}%0A%0A`;
+
+  order.items.forEach(i => {
+    msg += `• ${i.name} x ${i.qty}%0A`;
+  });
+
+  msg += `%0A💰 Total: S/ ${order.total.toFixed(2)}`;
+
+  window.open(`https://wa.me/51${order.customer.phone}?text=${msg}`, "_blank");
+}
+
+
+  
   const itemsDiv = document.getElementById("orderItems");
 
   order.items.forEach(item => {
