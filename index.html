@@ -2022,14 +2022,17 @@ function openOrders() {
       div.style.padding = "10px 0";
 
       div.innerHTML = `
-  <strong>Total: S/ ${o.total}</strong><br>
-  <small>Estado: ${o.status}</small><br>
-  <small>Fecha: ${
-    o.createdAt?.toDate
-      ? o.createdAt.toDate().toLocaleString()
-      : ""
-  }</small>
-`;
+        <strong>Total: S/ ${o.total}</strong><br>
+        <small>Estado: ${o.status}</small><br>
+        <small>
+          Fecha:
+          ${
+            o.createdAt?.toDate
+              ? o.createdAt.toDate().toLocaleString()
+              : "—"
+          }
+        </small>
+      `;
 
       list.appendChild(div);
     });
@@ -2037,6 +2040,7 @@ function openOrders() {
 
   document.getElementById("ordersModal").style.display = "flex";
 }
+
 
 
 
