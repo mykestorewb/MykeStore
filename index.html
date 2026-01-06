@@ -2022,9 +2022,15 @@ function openOrders() {
       div.style.padding = "10px 0";
 
       div.innerHTML = `
-        <strong>Total: S/ ${o.total.toFixed(2)}</strong><br>
-        <small>${o.status}</small>
-      `;
+  <strong>Total: S/ ${o.total}</strong><br>
+  <small>Estado: ${o.status}</small><br>
+  <small>Fecha: ${
+    o.createdAt?.toDate
+      ? o.createdAt.toDate().toLocaleString()
+      : ""
+  }</small>
+`;
+
       list.appendChild(div);
     });
   });
