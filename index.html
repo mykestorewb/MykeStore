@@ -316,7 +316,7 @@ main{padding:24px}
   transition:.2s;width:100%;margin-top:6px
 }
 .add-btn{background:#0ea5e9;color:white}
-.buy-btn{background:#25d366;color:white;display:flex;align-items:center;justify-content:center;gap:6px}
+.buy-btn{background:#16a34a;color:white;display:flex;align-items:center;justify-content:center;gap:6px}
 .add-btn:hover,.buy-btn:hover{transform:translateY(-2px)}
 .add-btn:active,.buy-btn:active{transform:scale(.92)}
 .buy-btn img{width:16px}
@@ -682,11 +682,12 @@ main{padding:24px}
   <strong>Total: S/ <span id="cartTotal">0</span></strong>
 
   <button
-    class="buy-btn"
-    id="checkoutBtn"
-    onclick="openCheckoutModal()">
-    Finalizar por WhatsApp
-  </button>
+  class="buy-btn"
+  id="checkoutBtn"
+  onclick="openCheckoutModal()">
+  Finalizar compra
+</button>
+
 </div>
 
   <!-- MODAL PERFIL OBLIGATORIO -->
@@ -1068,19 +1069,6 @@ async function processCheckout() {
 }
 
 
-  let msg = "¡Hola! Quiero hacer mi pedido:\n\n";
-
-  Object.values(CART).forEach(item => {
-    msg += `- ${item.name} x${item.qty}\n`;
-  });
-
-  const total = Object.values(CART).reduce((acc, item) => {
-    const price = item.discount ? item.finalPrice : item.price;
-    return acc + price * item.qty;
-  }, 0);
-
-  msg += `\nTotal: S/ ${total.toFixed(2)}`;
-
   // ✅ GUARDAR PEDIDO
   await addDoc(collection(db, "orders"), {
     userId: currentUser.uid,
@@ -1244,7 +1232,6 @@ ${
 
 
       <button class="buy-btn" data-name="${p.name}">
-  <img src="imagenes/whatsapp-logo.png" style="width:16px;">
   Comprar ahora
 </button>
 
@@ -1390,7 +1377,6 @@ ${
 </button>
 
   <button class="buy-btn" data-name="${p.name}">
-  <img src="imagenes/whatsapp-logo.png" style="width:16px;">
   Comprar ahora
 </button>
 
@@ -1575,7 +1561,6 @@ imgs.forEach(src => {
 
     <!-- Icono WhatsApp más pequeño -->
     <button class="buy-btn" data-name="${p.name}">
-  <img src="imagenes/whatsapp-logo.png" style="width:16px;">
   Comprar ahora
 </button>
 
