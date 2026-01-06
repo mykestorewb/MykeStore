@@ -676,7 +676,7 @@ main{padding:24px}
 </button>
 
   <div id="userDropdown" class="user-dropdown">
-    <div onclick="openOrders()">Mis pedidos</div>
+    <div onclick="goToOrders()">Mis pedidos</div>
     <div onclick="logout()">Cerrar sesión</div>
   </div>
 </div>
@@ -790,36 +790,6 @@ main{padding:24px}
     </button>
   </div>
 </div>
-
-<!-- MODAL MIS PEDIDOS -->
-<div id="ordersModal" style="
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.6);
-  z-index:9999;
-  align-items:center;
-  justify-content:center;
-">
-  <div style="
-    background:white;
-    padding:20px;
-    border-radius:14px;
-    width:90%;
-    max-width:420px;
-    max-height:80vh;
-    overflow:auto;
-  ">
-    <h3>🧾 Mis pedidos</h3>
-    <div id="ordersList"></div>
-
-    <button onclick="closeOrders()"
-      style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:10px">
-      Cerrar
-    </button>
-  </div>
-</div>
-
 
   
 <!-- MODAL LOGIN -->
@@ -1341,7 +1311,15 @@ ${
   catalog.appendChild(s);
 }
 
+function goToOrders() {
+  if (!currentUser || currentUser.isAnonymous) {
+    alert("Debes iniciar sesión para ver tus pedidos");
+    return;
+  }
+  window.location.href = "mis-pedidos.html";
+}
 
+  
 function renderCategoryGrid(title, products){
   catalog.innerHTML = "";
   detail.style.display = "none";
