@@ -608,6 +608,38 @@ main{padding:24px}
       <!-- Iconos sociales junto al carrito -->
       <a href="https://wa.me/51903263903" target="_blank"><img src="imagenes/whatsapp-logo.png" style="width:28px;"></a>
       <a href="https://www.facebook.com/profile.php?id=61556288997851" target="_blank"><img src="imagenes/facebook.png" style="width:28px;"></a>
+      <button
+  id="loginBtn"
+  onclick="openLoginModal()"
+  style="
+    padding:8px 14px;
+    border-radius:10px;
+    border:none;
+    background:#4285F4;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    display:none;
+  ">
+  Iniciar sesión
+</button>
+
+<button
+  id="profileBtn"
+  onclick="openOrders()"
+  style="
+    padding:8px 14px;
+    border-radius:10px;
+    border:none;
+    background:#0ea5e9;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+    display:none;
+  ">
+  Mis pedidos
+</button>
+
       <div class="cart-icon" onclick="toggleCart(true)">
         🛒 <span class="cart-count" id="cartCount">0</span>
       </div>
@@ -718,6 +750,37 @@ main{padding:24px}
   </div>
 </div>
 
+<!-- MODAL MIS PEDIDOS -->
+<div id="ordersModal" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+">
+  <div style="
+    background:white;
+    padding:20px;
+    border-radius:14px;
+    width:90%;
+    max-width:420px;
+    max-height:80vh;
+    overflow:auto;
+  ">
+    <h3>🧾 Mis pedidos</h3>
+    <div id="ordersList"></div>
+
+    <button onclick="closeOrders()"
+      style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:10px">
+      Cerrar
+    </button>
+  </div>
+</div>
+
+
+  
 <!-- MODAL LOGIN -->
 <div id="loginModal" style="
   display:none;
@@ -757,7 +820,8 @@ import {
   getAuth,
   onAuthStateChanged,
   signInWithPopup,
-  GoogleAuthProvider
+  GoogleAuthProvider,
+  signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 
@@ -776,9 +840,11 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
+// ✅ LOGIN ANÓNIMO AUTOMÁTICO
+signInAnonymously(auth).catch(() => {});
+
 let currentUser = null;
 let currentProfile = null;
-
 
 // Variables globales
 let DATA = {}, CART = JSON.parse(localStorage.getItem("cart") || "{}");
@@ -898,34 +964,33 @@ async function reserveStock(productId, qty) {
 })();
 
 onAuthStateChanged(auth, async (user) => {
-
-  // 👻 SI NO HAY USUARIO → LOGIN ANÓNIMO AUTOMÁTICO
-  if (!user) {
-    await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js")
-      .then(({ signInAnonymously }) => signInAnonymously(auth));
-    return;
-  }
-
-  // ✅ YA HAY USUARIO (anónimo o con teléfono)
   currentUser = user;
-  console.log("AUTH UID:", user.uid, "anon:", user.isAnonymous);
 
-  // 🔹 Si es anónimo, NO pedimos perfil todavía
-  if (user.isAnonymous) {
-    currentProfile = null;
-    return;
+  // === MOSTRAR / OCULTAR BOTONES LOGIN / PERFIL ===
+  const loginBtn = document.getElementById("loginBtn");
+  const profileBtn = document.getElementById("profileBtn");
+
+  if (user && user.isAnonymous) {
+    if (loginBtn) loginBtn.style.display = "inline-block";
+    if (profileBtn) profileBtn.style.display = "none";
   }
 
-  // 🔹 Usuario con teléfono → buscar perfil
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
+  if (user && !user.isAnonymous) {
+    if (loginBtn) loginBtn.style.display = "none";
+    if (profileBtn) profileBtn.style.display = "inline-block";
+  }
 
-  if (!snap.exists()) {
-    openProfileModal();
-  } else {
-    currentProfile = snap.data();
+  // === TU CÓDIGO EXISTENTE (NO TOCAR) ===
+  if (user) {
+    const profileRef = doc(db, "profiles", user.uid);
+    const snap = await getDoc(profileRef);
+
+    if (snap.exists()) {
+      currentProfile = snap.data();
+    }
   }
 });
+
 
 
 
@@ -989,8 +1054,9 @@ function checkExpiredCart(){
   saveCart();
 }
 
-function processCheckout() {
-  if (checkoutInProgress) return; // evitar doble click
+  
+async function processCheckout() {
+  if (checkoutInProgress) return;
   checkoutInProgress = true;
 
   if (!currentUser || currentUser.isAnonymous) {
@@ -1000,7 +1066,6 @@ function processCheckout() {
     return;
   }
 
-  // Aquí puedes generar el mensaje de WhatsApp
   let msg = "¡Hola! Quiero hacer mi pedido:\n\n";
 
   Object.values(CART).forEach(item => {
@@ -1014,17 +1079,24 @@ function processCheckout() {
 
   msg += `\nTotal: S/ ${total.toFixed(2)}`;
 
-  const phone = "51903263903"; // tu WhatsApp
+  // ✅ GUARDAR PEDIDO
+  await addDoc(collection(db, "orders"), {
+    userId: currentUser.uid,
+    items: Object.values(CART),
+    total,
+    status: "confirmado",
+    createdAt: serverTimestamp()
+  });
+
+  const phone = "51903263903";
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   window.open(url, "_blank");
 
-  // Marcar pedido como confirmado
   sessionStorage.setItem("checkoutConfirmed", "1");
   checkoutConfirmed = true;
-  checkoutInProgress = false;
 
-  // Cerrar modal
   document.getElementById("checkoutModal").style.display = "none";
+  checkoutInProgress = false;
 }
 
 
@@ -1864,6 +1936,36 @@ document.addEventListener("click", e => {
 
 });
 
+function openOrders() {
+  const list = document.getElementById("ordersList");
+  list.innerHTML = "";
+
+  onSnapshot(collection(db, "orders"), snapshot => {
+    list.innerHTML = "";
+
+    snapshot.forEach(docu => {
+      const o = docu.data();
+      if (o.userId !== currentUser.uid) return;
+
+      const div = document.createElement("div");
+      div.style.borderBottom = "1px solid #e5e7eb";
+      div.style.padding = "10px 0";
+
+      div.innerHTML = `
+        <strong>Total: S/ ${o.total.toFixed(2)}</strong><br>
+        <small>${o.status}</small>
+      `;
+      list.appendChild(div);
+    });
+  });
+
+  document.getElementById("ordersModal").style.display = "flex";
+}
+
+
+function closeOrders() {
+  document.getElementById("ordersModal").style.display = "none";
+}
 
 // ==== EXPONER FUNCIONES PARA HTML (FIX MODULE) ====
 window.renderAll = renderAll;
@@ -1881,8 +1983,14 @@ window.closeCategories = closeCategories;
 window.removeFromCart = removeFromCart;
 window.openCheckoutModal = openCheckoutModal;
 window.processCheckout = processCheckout;
-window.showDetailById = showDetailById;
 window.loginWithGoogle = loginWithGoogle;
+window.openOrders = openOrders;
+window.closeOrders = closeOrders;
+window.openLoginModal = () => {
+  document.getElementById("loginModal").style.display = "flex";
+};
+
+
 
 
 // Cerrar carrito al tocar el botón ✕
