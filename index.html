@@ -894,10 +894,7 @@ const cartCount = document.getElementById("cartCount");
 const cartTimer = document.getElementById("cartTimer");
 const CART_TIMEOUT = 60 * 60 * 1000; // 1 hora
 
-function saveCart() {
-  localStorage.setItem("cart", JSON.stringify(CART));
-}
-  
+
 function listenProductsRealtime() {
   const ref = collection(db, "products");
 
@@ -975,25 +972,6 @@ async function reserveStock(productId, qty) {
     return false;
   }
 }
-
-
-async function getNextOrderNumber() {
-  const ref = doc(db, "counters", "orders");
-
-  return await runTransaction(db, async (tx) => {
-    const snap = await tx.get(ref);
-
-    let next = 1;
-    if (snap.exists()) {
-      next = (snap.data().value || 0) + 1;
-    }
-
-    tx.set(ref, { value: next }, { merge: true });
-    return `MK-${next}`;
-  });
-}
-
-  
 
 // ==== Inicialización ====
 (() => {
@@ -1095,30 +1073,6 @@ function loginWithGoogle() {
     });
 }
 
-async function saveProfile() {
-  const name = document.getElementById("profileName").value.trim();
-  const phone = document.getElementById("profilePhone").value.trim();
-
-  if (!name || !phone) {
-    alert("Completa nombre y celular");
-    return;
-  }
-
-  await setDoc(
-    doc(db, "profiles", currentUser.uid),
-    {
-      name,
-      phone,
-      email: currentUser.email || "",
-      updatedAt: serverTimestamp()
-    },
-    { merge: true }
-  );
-
-  currentProfile = { name, phone };
-
-  document.getElementById("profileModal").style.display = "none";
-}
 
 
   
@@ -1145,13 +1099,6 @@ function checkExpiredCart(){
 
   
 async function processCheckout() {
-
-  if (!currentProfile?.name || !currentProfile?.phone) {
-  document.getElementById("profileModal").style.display = "flex";
-  checkoutInProgress = false;
-  return;
-}
-  
   if (checkoutInProgress) return;
   checkoutInProgress = true;
 
@@ -1169,21 +1116,13 @@ async function processCheckout() {
     total += price * item.qty;
   });
 
-  const shortId = await getNextOrderNumber();
-
-await addDoc(collection(db, "orders"), {
-  shortId,
-  userId: currentUser.uid,
-  customer: {
-    name: currentProfile.name,
-    phone: currentProfile.phone
-  },
-  items: Object.values(CART),
-  total,
-  status: "confirmado",
-  createdAt: serverTimestamp()
-});
-
+  await addDoc(collection(db, "orders"), {
+    userId: currentUser.uid,
+    items: Object.values(CART),
+    total,
+    status: "confirmado",
+    createdAt: serverTimestamp()
+  });
 
   CART = {};
   saveCart();
@@ -1201,35 +1140,7 @@ function available(p){
   return Math.max(0, Number(p.stock) || 0);
 }
 
-function buildCategories() {
-  categories.innerHTML = "";
 
-  const cats = new Set();
-
-  Object.values(DATA).forEach(type => {
-    Object.keys(type || {}).forEach(cat => cats.add(cat));
-  });
-
-  cats.forEach(cat => {
-    const div = document.createElement("div");
-
-    const logo = BRAND_LOGOS[cat.toLowerCase()];
-    div.innerHTML = `
-      ${logo ? `<img src="${logo}" class="brand-logo">` : ""}
-      <span>${cat}</span>
-    `;
-
-    div.onclick = () => {
-      closeCategories();
-      renderAll(cat);
-    };
-
-    categories.appendChild(div);
-  });
-}
-
-
-  
 // Render catálogo
 function renderAll(selectedCategory = null){
   catalog.innerHTML = "";
@@ -1277,7 +1188,10 @@ if (!isSearching) {
       renderSection(`${cat} (Preventa)`, products);
     }
   });
-} 
+
+  return;
+}
+}
 
 
 // Render sección
@@ -1805,6 +1719,7 @@ function changeQty(name,d){
     e.innerText = p._qty;
   }
 });
+
 }
 
 // Carrito
@@ -2100,7 +2015,7 @@ function loadOrders() {
   div.style.cursor = "pointer";
 
   div.innerHTML = `
-    <strong>${o.shortId || "—"} · Total: S/ ${o.total.toFixed(2)}</strong><br>
+    <strong>Total: S/ ${o.total.toFixed(2)}</strong><br>
     <small>Estado: ${o.status}</small><br>
     <small>
       Fecha:
@@ -2168,57 +2083,50 @@ function showOrderDetail(orderId, order) {
 
   const ordersView = document.getElementById("ordersView");
 
-  const itemsHtml = order.items.map(i => `
-    <div style="display:flex;justify-content:space-between;margin:6px 0">
-      <span>${i.name} x ${i.qty}</span>
-      <strong>S/ ${(i.qty * (i.finalPrice || i.price)).toFixed(2)}</strong>
-    </div>
-  `).join("");
-
   ordersView.innerHTML = `
     <div class="section">
-      <h2 class="section-title">🧾 Pedido ${order.shortId}</h2>
+      <h2 class="section-title">🧾 Detalle del pedido</h2>
 
-      <button onclick="showOrdersView()" style="margin-bottom:16px">
-        ⬅ Volver
+      <button
+        style="
+          margin-bottom:16px;
+          padding:10px 16px;
+          border:none;
+          border-radius:10px;
+          background:#334155;
+          color:white;
+          cursor:pointer;
+        "
+        onclick="showOrdersView()"
+      >
+        ⬅ Volver a mis pedidos
       </button>
 
-      <div style="background:white;padding:20px;border-radius:16px">
-        <p><strong>Cliente:</strong> ${order.customer?.name}</p>
-        <p><strong>Celular:</strong> ${order.customer?.phone}</p>
-        <hr>
-        ${itemsHtml}
-        <hr>
-        <h3>Total: S/ ${order.total.toFixed(2)}</h3>
+      <div style="
+        background:white;
+        padding:20px;
+        border-radius:16px;
+        box-shadow:0 8px 20px rgba(0,0,0,.08)
+      ">
+        <p><strong>Pedido ID:</strong> ${orderId}</p>
+        <p><strong>Estado:</strong> ${order.status}</p>
+        <p><strong>Fecha:</strong> ${
+          order.createdAt?.toDate
+            ? order.createdAt.toDate().toLocaleString()
+            : "—"
+        }</p>
 
-        <button
-          style="margin-top:12px;background:#25d366;color:white;padding:12px;border:none;border-radius:10px;width:100%"
-          onclick="sendOrderWhatsApp(${JSON.stringify(order).replace(/"/g,"&quot;")})"
-        >
-          📲 Reenviar por WhatsApp
-        </button>
+        <hr style="margin:12px 0">
+
+        <div id="orderItems"></div>
+
+        <hr style="margin:12px 0">
+
+        <h3>Total: S/ ${order.total.toFixed(2)}</h3>
       </div>
     </div>
   `;
-}
 
-
-function sendOrderWhatsApp(order) {
-  let msg = `🧾 Pedido ${order.shortId}%0A`;
-  msg += `👤 ${order.customer.name}%0A`;
-  msg += `📱 ${order.customer.phone}%0A%0A`;
-
-  order.items.forEach(i => {
-    msg += `• ${i.name} x ${i.qty}%0A`;
-  });
-
-  msg += `%0A💰 Total: S/ ${order.total.toFixed(2)}`;
-
-  window.open(`https://wa.me/51${order.customer.phone}?text=${msg}`, "_blank");
-}
-
-
-  
   const itemsDiv = document.getElementById("orderItems");
 
   order.items.forEach(item => {
