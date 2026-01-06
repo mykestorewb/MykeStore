@@ -64,6 +64,28 @@ header{
   font-size:12px;padding:2px 6px;border-radius:50%
 }
 
+
+.login-btn{
+  background:#0ea5e9;
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  padding:8px 16px;
+  font-weight:600;
+  cursor:pointer;
+  transition:.2s;
+}
+
+.login-btn:hover{
+  background:#0284c7;
+}
+
+.login-btn:active{
+  transform:scale(.96);
+}
+
+  
+  
 /* CATEGORIES */
 #categories{
   display:none;position:absolute;top:230px;left:50%;
@@ -608,41 +630,25 @@ main{padding:24px}
       <!-- Iconos sociales junto al carrito -->
       <a href="https://wa.me/51903263903" target="_blank"><img src="imagenes/whatsapp-logo.png" style="width:28px;"></a>
       <a href="https://www.facebook.com/profile.php?id=61556288997851" target="_blank"><img src="imagenes/facebook.png" style="width:28px;"></a>
-      <button
+      <div class="cart-icon" onclick="toggleCart(true)">
+  🛒 <span class="cart-count" id="cartCount">0</span>
+</div>
+
+<button
   id="loginBtn"
-  onclick="openLoginModal()"
-  style="
-    padding:8px 14px;
-    border-radius:10px;
-    border:none;
-    background:#4285F4;
-    color:white;
-    font-weight:600;
-    cursor:pointer;
-    display:none;
-  ">
-  Iniciar sesión
+  class="login-btn"
+  onclick="document.getElementById('loginModal').style.display='flex'">
+  Login
 </button>
 
 <button
   id="profileBtn"
+  class="login-btn"
   onclick="openOrders()"
-  style="
-    padding:8px 14px;
-    border-radius:10px;
-    border:none;
-    background:#0ea5e9;
-    color:white;
-    font-weight:600;
-    cursor:pointer;
-    display:none;
-  ">
+  style="display:none">
   Mis pedidos
 </button>
 
-      <div class="cart-icon" onclick="toggleCart(true)">
-        🛒 <span class="cart-count" id="cartCount">0</span>
-      </div>
     </div>
   </div>
   <div id="categories"></div>
@@ -840,11 +846,10 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// ✅ LOGIN ANÓNIMO AUTOMÁTICO
-signInAnonymously(auth).catch(() => {});
-
 let currentUser = null;
 let currentProfile = null;
+let ordersUnsub = null;
+
 
 // Variables globales
 let DATA = {}, CART = JSON.parse(localStorage.getItem("cart") || "{}");
@@ -964,34 +969,30 @@ async function reserveStock(productId, qty) {
 })();
 
 onAuthStateChanged(auth, async (user) => {
+
+  if (!user) {
+    await signInAnonymously(auth).catch(() => {});
+    return;
+  }
+
   currentUser = user;
 
-  // === MOSTRAR / OCULTAR BOTONES LOGIN / PERFIL ===
   const loginBtn = document.getElementById("loginBtn");
   const profileBtn = document.getElementById("profileBtn");
 
-  if (user && user.isAnonymous) {
-    if (loginBtn) loginBtn.style.display = "inline-block";
-    if (profileBtn) profileBtn.style.display = "none";
+  if (user.isAnonymous) {
+    loginBtn.style.display = "inline-block";
+    profileBtn.style.display = "none";
+  } else {
+    loginBtn.style.display = "none";
+    profileBtn.style.display = "inline-block";
+    document.getElementById("loginModal").style.display = "none";
   }
 
-  if (user && !user.isAnonymous) {
-    if (loginBtn) loginBtn.style.display = "none";
-    if (profileBtn) profileBtn.style.display = "inline-block";
-  }
-
-  // === TU CÓDIGO EXISTENTE (NO TOCAR) ===
-  if (user) {
-    const profileRef = doc(db, "profiles", user.uid);
-    const snap = await getDoc(profileRef);
-
-    if (snap.exists()) {
-      currentProfile = snap.data();
-    }
-  }
+  const profileRef = doc(db, "profiles", user.uid);
+  const snap = await getDoc(profileRef);
+  if (snap.exists()) currentProfile = snap.data();
 });
-
-
 
 
 // ==== FUNCIONES ====
@@ -1060,11 +1061,12 @@ async function processCheckout() {
   checkoutInProgress = true;
 
   if (!currentUser || currentUser.isAnonymous) {
-    alert("Debes iniciar sesión antes de finalizar el pedido.");
-    document.getElementById("loginModal").style.display = "flex";
-    checkoutInProgress = false;
-    return;
-  }
+  alert("Debes iniciar sesión antes de finalizar el pedido.");
+  document.getElementById("loginModal").style.display = "flex";
+  checkoutInProgress = false;
+  return;
+}
+
 
   let msg = "¡Hola! Quiero hacer mi pedido:\n\n";
 
@@ -1940,7 +1942,9 @@ function openOrders() {
   const list = document.getElementById("ordersList");
   list.innerHTML = "";
 
-  onSnapshot(collection(db, "orders"), snapshot => {
+  if (ordersUnsub) ordersUnsub(); // cerrar listener previo
+
+  ordersUnsub = onSnapshot(collection(db, "orders"), snapshot => {
     list.innerHTML = "";
 
     snapshot.forEach(docu => {
@@ -1963,8 +1967,14 @@ function openOrders() {
 }
 
 
+
 function closeOrders() {
   document.getElementById("ordersModal").style.display = "none";
+  if (ordersUnsub) {
+  ordersUnsub();
+  ordersUnsub = null;
+}
+
 }
 
 // ==== EXPONER FUNCIONES PARA HTML (FIX MODULE) ====
@@ -1996,37 +2006,7 @@ window.openLoginModal = () => {
 // Cerrar carrito al tocar el botón ✕
 document.getElementById("cartCloseBtn").addEventListener("click", () => {
   toggleCart(false);
-});
-
-
-window.openProfileModal = () => {
-  document.getElementById("profileModal").style.display = "flex";
-};
-
-window.saveProfile = async () => {
-  const name = document.getElementById("profileName").value.trim();
-  const phone = document.getElementById("profilePhone").value.trim();
-
-  if (!name) return alert("Nombre obligatorio");
-  if (!phone) return alert("Celular obligatorio");
-
-  await setDoc(doc(db, "users", currentUser.uid), {
-    name,
-    phone,
-    email: currentUser.email || null,
-    createdAt: serverTimestamp()
-  });
-
-  currentProfile = { name, phone };
-  document.getElementById("profileModal").style.display = "none";
-};
-
-
-window.openLoginModal = () => {
-  document.getElementById("loginModal").style.display = "flex";
-};
-
-  
+});  
 </script>
 
 </body>
