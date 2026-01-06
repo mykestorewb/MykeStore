@@ -1043,7 +1043,7 @@ if (!user) {
   const userMenu = document.getElementById("userMenu");
   const userBtn = document.getElementById("userBtn");
 
-  if (user.isAnonymous) {
+if (user.isAnonymous) {
   loginBtn.style.display = "inline-block";
   userMenu.style.display = "none";
 } else {
@@ -1055,12 +1055,13 @@ if (!user) {
     user.displayName ||
     "Cliente";
 
-if (userBtn) {
-  userBtn.textContent = `Hola, ${name}`;
-  userBtn.onclick = toggleUserMenu;
-}
+  if (userBtn) {
+    userBtn.textContent = `Hola, ${name}`;
+    userBtn.onclick = toggleUserMenu;
+  }
+} // 👈 CIERRA EL else
 
-}); // 👈 ESTE CIERRA onAuthStateChanged
+}); // 👈 CIERRA onAuthStateChanged
 
 
 
