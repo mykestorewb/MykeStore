@@ -613,6 +613,35 @@ main{padding:24px}
   color:white;
 }
 
+.user-menu {
+  position: relative;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background: #1f2933;
+  border-radius: 10px;
+  min-width: 160px;
+  display: none;
+  box-shadow: 0 10px 25px rgba(0,0,0,.25);
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.user-dropdown div {
+  padding: 12px 16px;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 500;
+}
+
+.user-dropdown div:hover {
+  background: #374151;
+}
+
+
   
 </style>
 </head>
@@ -641,13 +670,18 @@ main{padding:24px}
   Login
 </button>
 
-<button
-  id="profileBtn"
-  class="login-btn"
-  onclick="openOrders()"
-  style="display:none">
-  Mis pedidos
-</button>
+<div id="userMenu" class="user-menu" style="display:none">
+  <button id="userBtn" class="login-btn">
+    Hola
+  </button>
+
+  <div id="userDropdown" class="user-dropdown">
+    <div onclick="openOrders()">Mis pedidos</div>
+    <div onclick="logout()">Cerrar sesión</div>
+  </div>
+</div>
+
+
 
     </div>
   </div>
@@ -828,7 +862,8 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   GoogleAuthProvider,
-  signInAnonymously
+  signInAnonymously,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 
@@ -979,21 +1014,32 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
 
   const loginBtn = document.getElementById("loginBtn");
-  const profileBtn = document.getElementById("profileBtn");
+  const userMenu = document.getElementById("userMenu");
+  const userBtn = document.getElementById("userBtn");
 
   if (user.isAnonymous) {
     loginBtn.style.display = "inline-block";
-    profileBtn.style.display = "none";
+    userMenu.style.display = "none";
   } else {
     loginBtn.style.display = "none";
-    profileBtn.style.display = "inline-block";
+    userMenu.style.display = "block";
+
+    const profileRef = doc(db, "profiles", user.uid);
+    const snap = await getDoc(profileRef);
+    if (snap.exists()) currentProfile = snap.data();
+
+    const name =
+      currentProfile?.name ||
+      user.displayName ||
+      "Cliente";
+
+    userBtn.textContent = `Hola, ${name}`;
+    userBtn.onclick = toggleUserMenu;
+
     document.getElementById("loginModal").style.display = "none";
   }
-
-  const profileRef = doc(db, "profiles", user.uid);
-  const snap = await getDoc(profileRef);
-  if (snap.exists()) currentProfile = snap.data();
 });
+
 
 
 // ==== FUNCIONES ====
@@ -1062,14 +1108,19 @@ async function processCheckout() {
   checkoutInProgress = true;
 
   if (!currentUser || currentUser.isAnonymous) {
-  alert("Debes iniciar sesión antes de finalizar el pedido.");
-  document.getElementById("loginModal").style.display = "flex";
-  checkoutInProgress = false;
-  return;
-}
+    alert("Debes iniciar sesión antes de finalizar el pedido.");
+    document.getElementById("loginModal").style.display = "flex";
+    checkoutInProgress = false;
+    return;
+  }
 
+  let total = 0;
 
-  // ✅ GUARDAR PEDIDO
+  Object.values(CART).forEach(item => {
+    const price = item.discount ? item.finalPrice : item.price;
+    total += price * item.qty;
+  });
+
   await addDoc(collection(db, "orders"), {
     userId: currentUser.uid,
     items: Object.values(CART),
@@ -1078,15 +1129,14 @@ async function processCheckout() {
     createdAt: serverTimestamp()
   });
 
-  const phone = "51903263903";
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-  window.open(url, "_blank");
-
-  sessionStorage.setItem("checkoutConfirmed", "1");
-  checkoutConfirmed = true;
+  CART = {};
+  saveCart();
+  renderCart();
 
   document.getElementById("checkoutModal").style.display = "none";
   checkoutInProgress = false;
+
+  alert("✅ Pedido registrado correctamente");
 }
 
 
@@ -1879,7 +1929,16 @@ function renderByType(type){
   );
 }
 
-  
+function toggleUserMenu() {
+  const dd = document.getElementById("userDropdown");
+  dd.style.display = dd.style.display === "block" ? "none" : "block";
+}
+
+function logout() {
+  signOut(auth).then(() => location.reload());
+}
+   
+
 function toggleCategories(){
   const open = categories.style.display !== "block";
   categories.style.display = open ? "block" : "none";
@@ -1962,6 +2021,18 @@ function closeOrders() {
 
 }
 
+document.addEventListener("click", e => {
+  const menu = document.getElementById("userMenu");
+  const dropdown = document.getElementById("userDropdown");
+
+  if (!menu || !dropdown) return;
+
+  if (!menu.contains(e.target)) {
+    dropdown.style.display = "none";
+  }
+});
+
+
 // ==== EXPONER FUNCIONES PARA HTML (FIX MODULE) ====
 window.renderAll = renderAll;
 window.showDetail = showDetail;
@@ -1982,10 +2053,8 @@ window.loginWithGoogle = loginWithGoogle;
 window.openOrders = openOrders;
 window.closeOrders = closeOrders;
 window.openLoginModal = () => {
-  document.getElementById("loginModal").style.display = "flex";
-};
-
-
+  document.getElementById("loginModal").style.display = "flex"};
+window.processCheckout = processCheckout;
 
 
 // Cerrar carrito al tocar el botón ✕
