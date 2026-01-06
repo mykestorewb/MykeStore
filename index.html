@@ -622,18 +622,34 @@ main{padding:24px}
   <div id="detail"></div>
 </main>
 
+
 <div id="cart-overlay" onclick="toggleCart(false)"></div>
+
 <div id="cart">
   <button id="cartCloseBtn" style="
-  position:absolute;
-  top:12px;
-  right:12px;
-  background:none;
-  border:none;
-  font-size:24px;
-  font-weight:bold;
-  cursor:pointer;
-">✕</button>
+    position:absolute;
+    top:12px;
+    right:12px;
+    background:none;
+    border:none;
+    font-size:24px;
+    font-weight:bold;
+    cursor:pointer;
+  ">✕</button>
+
+  <h2>Carrito <small id="cartTimer"></small></h2>
+
+  <div id="cartItems"></div>
+
+  <strong>Total: S/ <span id="cartTotal">0</span></strong>
+
+  <button
+    class="buy-btn"
+    id="checkoutBtn"
+    onclick="openCheckoutModal()">
+    Finalizar por WhatsApp
+  </button>
+</div>
 
   <!-- MODAL PERFIL OBLIGATORIO -->
 <div id="profileModal" style="
@@ -675,8 +691,7 @@ main{padding:24px}
   </div>
 </div>
 
-  
-  <!-- MODAL CHECKOUT -->
+<!-- MODAL CHECKOUT -->
 <div id="checkoutModal" style="
   display:none;
   position:fixed;
@@ -686,7 +701,6 @@ main{padding:24px}
   align-items:center;
   justify-content:center;
 ">
-
   <div style="
     background:white;
     padding:22px;
@@ -702,8 +716,10 @@ main{padding:24px}
       Confirmar pedido
     </button>
   </div>
-  
- <div id="loginModal" style="
+</div>
+
+<!-- MODAL LOGIN -->
+<div id="loginModal" style="
   display:none;
   position:fixed;
   inset:0;
@@ -720,35 +736,6 @@ main{padding:24px}
       Continuar con Google
     </button>
   </div>
-</div>
-
-
-<div id="cart-overlay" onclick="toggleCart(false)"></div>
-
-<div id="cart">
-  <button id="cartCloseBtn" style="
-    position:absolute;
-    top:12px;
-    right:12px;
-    background:none;
-    border:none;
-    font-size:24px;
-    font-weight:bold;
-    cursor:pointer;
-  ">✕</button>
-
-  <h2>Carrito <small id="cartTimer"></small></h2>
-
-  <div id="cartItems"></div>
-
-  <strong>Total: S/ <span id="cartTotal">0</span></strong>
-
-  <button
-    class="buy-btn"
-    id="checkoutBtn"
-    onclick="openCheckoutModal()">
-    Finalizar por WhatsApp
-  </button>
 </div>
   
 <!-- ==== Módulo único para Firebase y todo el JS ==== -->
